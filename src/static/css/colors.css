@@ -1,0 +1,19 @@
+:root {
+  --darker-bg: #f3f5f6;
+  --light-text: #1f2d30;
+  --muted-text: #6a7f84;
+  --accent-primary: #399f9a;
+  --accent-secondary: #297c76;
+  --accent-hover: #5ed0cb;
+  --border-color: rgba(120, 145, 150, 0.3);
+  --shadow-color: rgba(10, 20, 25, 0.1);
+  --success-color: #4eb99a;
+  --warning-color: #e0b85c;
+  --error-color: #d45c5c;
+  --input-bg: rgba(235, 240, 241, 0.6);
+  --input-border: #60aaa5;
+  --input-focus: #50d4ce;
+
+  --gradient-start: #e7eeee;
+  --gradient-end: #c9d9da;
+  }

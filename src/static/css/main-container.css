@@ -1,0 +1,110 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    color: var(--light-text);
+    padding: 20px;
+    transition: all 0.3s ease;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 90%;
+    margin: 0 auto;
+    border: 2px solid var(--border-color);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px var(--shadow-color);
+    background-color: var(--darker-bg);
+    min-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+}
+
+.input-container {
+    width: 100%;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    background-color: var(--darker-bg);
+}
+
+#userInput {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    color: var(--light-text);
+    outline: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.2s ease;
+}
+
+#userInput::placeholder {
+    color: var(--muted-text);
+}
+
+#userInput:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(61, 169, 188, 0.2);
+}
+
+
+.outputs-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+    flex: 1;
+}
+
+
+.output-box, .dummy-box  {
+    flex: 1 0 300px;
+    min-height: 300px;
+    min-width: 420px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background-color: var(--input-bg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);    
+}
+
+.output-box {
+    transition: all 0.3s ease;
+}
+
+.output-box:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
+}
+
+.dummy-box {
+    visibility: visible;
+    pointer-events: none;
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+@media (max-width: 650px) {
+    .output-box {
+        flex: 1 0 100%;
+        height: auto;
+    }
+    
+    .container {
+        min-height: auto;
+    }
+}
