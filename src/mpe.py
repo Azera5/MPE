@@ -2,10 +2,20 @@ from flask import Flask, render_template, jsonify, request as flask_request  # R
 import os
 import requests 
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from db_models import Base, User, Model, Strategy, Question, Query, Answer, Feedback, Metaprompt
+
 # Initialize Flask application
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.urandom(24)  # Secret key for session management
 app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 3600 
+
+# Database configuration
+DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
+engine = create_engine(DATABASE_URL, echo=True)  # echo=True for SQL debugging
+SessionLocal = sessionmaker(bind=engine)
 
 # Ollama configuration
 OLLAMA_BASE_URL = 'http://localhost:11434'  # Default Ollama URL
@@ -75,5 +85,22 @@ def generate_response(prompt, model=None):
     except requests.exceptions.RequestException as e:  # Using requests.exceptions
         return f"Error communicating with Ollama: {str(e)}"
 
+def init_database():
+    """Initialize the database by creating all tables"""
+    try:
+        # Create all tables based on the models
+        Base.metadata.create_all(engine)
+        print("Database tables created successfully!")
+                  
+    except Exception as e:
+        print(f"Error creating database: {e}")
+
+def get_db_session():
+    """Get a database session"""
+    return SessionLocal()
+
 if __name__ == '__main__':
+    init_database()
+    
     app.run(debug=True)
+    
