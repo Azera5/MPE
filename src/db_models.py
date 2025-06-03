@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Integer, Float, ForeignKey, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
+
 Base = declarative_base()
 
 class User(Base):
@@ -9,12 +10,10 @@ class User(Base):
     __tablename__ = 'users'
     
     user = Column(String, primary_key=True)
-    
+
     # Relationships
     queries = relationship("Query", back_populates="user_ref")
-    answers = relationship("Answer", back_populates="user_ref")
     feedbacks = relationship("Feedback", back_populates="user_ref")
-    metaprompts = relationship("Metaprompt", back_populates="user_ref")
 
 class Model(Base):
     """Model table to store different AI models"""
@@ -22,7 +21,7 @@ class Model(Base):
     
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    
+
     # Relationships
     answers = relationship("Answer", back_populates="model_ref")
     metaprompts = relationship("Metaprompt", back_populates="model_ref")
@@ -54,10 +53,10 @@ class Query(Base):
     """Query table to link users with questions and best answers"""
     __tablename__ = 'queries'
     
-    user = Column(String, ForeignKey('users.user'), primary_key=True)
+    user = Column(String, ForeignKey('users.user'))
     id = Column(Integer, primary_key=True)
     question_id = Column(Integer, ForeignKey('questions.id'))
-    best_answer_id = Column(Integer, ForeignKey('answers.id'))
+    best_answer_id = Column(Integer, ForeignKey('answers.id')) #what defines best answer
     
     # Relationships
     user_ref = relationship("User", back_populates="queries")
@@ -68,7 +67,6 @@ class Answer(Base):
     """Answer table to store generated answers with metadata"""
     __tablename__ = 'answers'
     
-    user = Column(String, ForeignKey('users.user'), primary_key=True)
     id = Column(Integer, primary_key=True)
     answer = Column(Text)
     model = Column(Integer, ForeignKey('models.id'))
@@ -88,7 +86,7 @@ class Feedback(Base):
     """Feedback table to store quality ratings for answers"""
     __tablename__ = 'feedback'
     
-    user = Column(String, ForeignKey('users.user'), primary_key=True)
+    user = Column(String, ForeignKey('users.user'))
     id = Column(Integer, primary_key=True)
     accuracy = Column(Float)
     completeness = Column(Float)
@@ -103,7 +101,6 @@ class Metaprompt(Base):
     """Metaprompt table to store prompting experiments"""
     __tablename__ = 'metaprompts'
     
-    user = Column(String, ForeignKey('users.user'), primary_key=True)
     id = Column(Integer, primary_key=True)
     query_id = Column(Integer, ForeignKey('queries.id'))
     strategy_id = Column(Integer, ForeignKey('strategies.id'))
@@ -112,7 +109,6 @@ class Metaprompt(Base):
     answer_id = Column(Integer, ForeignKey('answers.id'))
     
     # Relationships
-    user_ref = relationship("User", back_populates="metaprompts")
     strategy_ref = relationship("Strategy", back_populates="metaprompts")
     model_ref = relationship("Model", back_populates="metaprompts")
     query_ref = relationship("Query", foreign_keys=[query_id])
