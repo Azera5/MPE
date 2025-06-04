@@ -1,10 +1,13 @@
 from flask import Flask, render_template, jsonify, request as flask_request  # Renamed to avoid confusion
 import os
-import requests 
+import requests
 
 from sqlalchemy import create_engine, exists
 
 from sqlalchemy.orm import sessionmaker
+
+import pandas as pd
+import numpy as np
 
 from db_models import Base, User, Model, Strategy, Question, Query, Answer, Feedback, Metaprompt
 
@@ -13,8 +16,9 @@ from globals import MODELS, QA_PAIRS, STRATEGIES
 # Initialize Flask application
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.urandom(24)  # Secret key for session management
-app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 3600 
+app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 3600
 
+# Database configuration
 # Database configuration
 DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
 engine = create_engine(DATABASE_URL, echo=False)  # echo=True for SQL debugging
@@ -28,6 +32,7 @@ DEFAULT_MODEL = MODELS[0]  # Default model to use if none specified
 def index():
     """Render the main index page"""
     return render_template('index.html')
+
 
 @app.route('/api/prompt', methods=['POST'])
 def handle_prompt():
@@ -45,24 +50,25 @@ def handle_prompt():
     """
     # Get JSON data from request
     data = flask_request.get_json()
-    
+
     if not data or 'prompt' not in data:
         return jsonify({
             'error': 'Invalid request. Please provide a "prompt" in the JSON payload.'
         }), 400
-    
+
     # Extract prompt and model (if provided)
     prompt = data['prompt']
     model = data.get('model', DEFAULT_MODEL)
-    
+
     # Get response from Ollama
     response = generate_response(prompt, model)
-    
+
     return jsonify({
         'prompt': prompt,
         'model': model,
         'response': response
     })
+
 
 def generate_response(prompt, model=None):
     """
@@ -73,19 +79,20 @@ def generate_response(prompt, model=None):
     """
     model = model or DEFAULT_MODEL
     endpoint = f"{OLLAMA_BASE_URL}/api/generate"
-    
+
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False  # We want a single response, not a stream
     }
-    
+
     try:
         response = requests.post(endpoint, json=payload)
         response.raise_for_status()  # Raise exception for HTTP errors
         return response.json().get('response', 'No response received')
     except requests.exceptions.RequestException as e:  # Using requests.exceptions
         return f"Error communicating with Ollama: {str(e)}"
+
 
 def init_database():
     """Initialize the database by creating all tables and populating initial data"""
@@ -138,12 +145,26 @@ def init_database():
         if session:
             session.close()
 
+
 def get_db_session():
     """Get a database session"""
     return SessionLocal()
 
+@app.route('/table', methods=("POST", "GET"))
+def html_table():
+    df = pd.read_sql_query("""SELECT *
+                              from metaprompts
+                                       join main.queries q on q.id = metaprompts.query_id
+                                       join main.answers a on q.id = a.query_id
+                                       join main.questions q2 on q.question_id = q2.id
+                                       join main.users u on q.user = u.user
+                                       join main.feedback f on a.feedback_id = f.id
+                                       join main.models m on a.model = m.id
+                                       join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
+
+    return render_template('data.html', tables=[df.to_html(classes='data', header="true")])
+
 if __name__ == '__main__':
     init_database()
-    
+
     app.run(debug=True)
-    
