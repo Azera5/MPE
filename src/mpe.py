@@ -18,7 +18,8 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.urandom(24)  # Secret key for session management
 app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 3600
 
-# Database configuration
+
+
 # Database configuration
 DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
 engine = create_engine(DATABASE_URL, echo=False)  # echo=True for SQL debugging
@@ -31,7 +32,13 @@ DEFAULT_MODEL = MODELS[0]  # Default model to use if none specified
 @app.route('/')
 def index():
     """Render the main index page"""
-    return render_template('index.html')
+    return render_template('index.html', active_tab='prompt')
+
+
+@app.route('/logs')
+def show_logs():
+    """Render the main index page"""
+    return render_template('logs.html', active_tab='logs')
 
 
 @app.route('/api/prompt', methods=['POST'])
@@ -162,7 +169,7 @@ def html_table():
                                        join main.models m on a.model = m.id
                                        join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
 
-    return render_template('data.html', tables=[df.to_html(classes='data', header="true")])
+    return render_template('data.html', active_tab='table', tables=[df.to_html(classes='data', header="true")])
 
 if __name__ == '__main__':
     init_database()
