@@ -167,4 +167,5 @@ def html_table():
 if __name__ == '__main__':
     init_database()
 
-    app.run(debug=True)
+    # Using a dynamically assigned free port
+    app.run(host='127.0.0.1', port=0)
