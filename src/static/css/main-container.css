@@ -16,9 +16,11 @@ body {
 .container {
     max-width: 90%;
     margin: 0 auto;
+    margin-top: 0;    
     border: 2px solid var(--border-color);
+    border-top: none;
     padding: 15px;
-    border-radius: 8px;
+    border-radius: 0 0 8px 8px;
     box-shadow: 0 4px 15px var(--shadow-color);
     background-color: var(--darker-bg);
     min-height: calc(100vh - 40px);

@@ -1,15 +1,6 @@
- <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MPE</title>
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/colors.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main-container.css') }}">
-</head>
-<body>
-    <div class="container">
+{% extends "base.html" %}
+{% block content %}
+    
         <div class="input-container">
             <input type="text" id="userInput" placeholder="Input">
         </div>
@@ -21,8 +12,4 @@
         </div>
     </div>
 
-
-    <script src="{{ url_for('static', filename='scripts/outputPosition.js') }}"> </script>
-    <script src="{{ url_for('static', filename='scripts/promptHandler.js') }}"></script>
-</body>
-</html> 
+{% endblock %}
