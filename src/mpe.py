@@ -1,10 +1,12 @@
 from flask import Flask, render_template, jsonify, request as flask_request  # Renamed to avoid confusion
 import os
-import requests
+import subprocess
+import requests 
 
 from sqlalchemy import create_engine, exists
 
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
 import pandas as pd
 import numpy as np
@@ -24,9 +26,16 @@ DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
 engine = create_engine(DATABASE_URL, echo=False)  # echo=True for SQL debugging
 SessionLocal = sessionmaker(bind=engine)
 
+# Apptainer configuration
+INSTANCE_NAME = 'ollama_instance'
+
 # Ollama configuration
 OLLAMA_BASE_URL = 'http://localhost:11434'  # Default Ollama URL
 DEFAULT_MODEL = MODELS[0]  # Default model to use if none specified
+current_model = 'none'
+
+# Timestamp
+RUN_TIMESTAMP=datetime.now().strftime("%Y_%m_%d@%H_%M_%S")
 
 @app.route('/')
 def index():
@@ -149,6 +158,70 @@ def init_database():
 def get_db_session():
     """Get a database session"""
     return SessionLocal()
+
+# ollama run implies ollama pull if the requested model is not available
+def start_service():
+    """
+    Start ollama service via Apptainer.
+    """
+    if current_model == new_model:
+        return True
+    
+    try:
+        cmd = (f'chmod a+x start_service.sh && '
+               f'./start_service.sh "{RUN_TIMESTAMP}"')
+        
+        result = subprocess.run(cmd, shell=True, check=True)
+        return result.returncode
+    except subprocess.CalledProcessError as e:
+        print(f"Error while starting service: {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return False
+
+def switch_model(new_model):
+    """
+    Switch to new model.
+    
+    Args:
+        new_model: Model to switch to
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if current_model == new_model:
+        return True
+    
+    try:
+        # ollama run implies ollama pull if the requested model is not available
+        if current_model == 'none':
+            cmd = f'apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}'
+        else:
+            cmd = (f'apptainer exec instance://{INSTANCE_NAME} ollama stop {current_model} && '
+                   f'apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}')
+        
+        result = subprocess.run(cmd, shell=True, check=True)
+        return result.returncode
+    except subprocess.CalledProcessError as e:
+        print(f"Error while switching models: {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return False
+
+# crude service interactions, for test purposes only
+def crude_start_service():
+    os.system(f'chmod a+x start_service.sh && ./start_service.sh "{RUN_TIMESTAMP}"')
+
+def crude_switch_model(new_model):
+    if current_model == new_model:
+        pass
+    elif current_model == 'none':
+        os.system(f'apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}')
+    else:
+        os.system(f'apptainer exec instance://{INSTANCE_NAME} ollama stop {current_model} && apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}')
+
 
 @app.route('/table', methods=("POST", "GET"))
 def html_table():
