@@ -14,13 +14,16 @@ import numpy as np
 from db_models import Base, User, Model, Strategy, Question, Query, Answer, Feedback, Metaprompt
 
 from globals import MODELS, QA_PAIRS, STRATEGIES
+from pathlib import Path
 
 # Initialize Flask application
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.urandom(24)  # Secret key for session management
 app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 3600
 
-
+src_dir = Path(__file__).parent
+script_path = src_dir / "start_service.sh"
+log_path = src_dir / ".logs" 
 
 # Database configuration
 DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
@@ -46,8 +49,22 @@ def index():
 
 @app.route('/logs')
 def show_logs():
-    """Render the main index page"""
-    return render_template('logs.html', active_tab='logs')
+    service_output_path = log_path / f"service_output@{RUN_TIMESTAMP}.log"
+    service_boot_path = log_path / f"service_boot@{RUN_TIMESTAMP}.log"
+
+    logs = {
+        'output': {'path': service_output_path, 'content': '', 'title': 'Service Output'},
+        'boot': {'path': service_boot_path, 'content': '', 'title': 'Service Boot'}
+    }
+
+    for key in logs:
+        try:
+            with open(logs[key]['path'], 'r') as f:
+                logs[key]['content'] = f.read()
+        except FileNotFoundError:
+            logs[key]['content'] = f"Log file not found: {logs[key]['path']}"
+
+    return render_template('logs.html', active_tab='logs', logs=logs, timestamp=RUN_TIMESTAMP)
 
 
 @app.route('/api/prompt', methods=['POST'])
@@ -171,12 +188,12 @@ def start_service():
     """
     Start ollama service via Apptainer.
     """
-    if current_model == new_model:
-        return True
+    # if current_model == new_model:
+    #     return True
     
     try:
-        cmd = (f'chmod a+x start_service.sh && '
-               f'./start_service.sh "{RUN_TIMESTAMP}"')
+        cmd = (f'chmod a+x "{script_path}" && '
+               f'"{script_path}" "{RUN_TIMESTAMP}" &')
         
         result = subprocess.run(cmd, shell=True, check=True)
         return result.returncode
@@ -219,7 +236,7 @@ def switch_model(new_model):
 
 # crude service interactions, for test purposes only
 def crude_start_service():
-    os.system(f'chmod a+x start_service.sh && ./start_service.sh "{RUN_TIMESTAMP}"')
+    os.system(f'chmod a+x "{script_path}" && "{script_path}" "{RUN_TIMESTAMP}"')
 
 def crude_switch_model(new_model):
     if current_model == new_model:
@@ -246,6 +263,7 @@ def html_table():
 
 if __name__ == '__main__':
     init_database()
-
+    start_service()
+    
     # Using a dynamically assigned free port
     app.run(host='127.0.0.1', port=0)

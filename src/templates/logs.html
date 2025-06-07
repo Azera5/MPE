@@ -1,8 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
 
-
-TODO
-
+<div class="logs-container">
+    <h2 class="logs-title">Service Logs @{{ timestamp }}</h2>
+    
+    {% for key, log in logs.items() %}
+    <div class="log-viewer">
+        <div class="log-header">
+            {{ log.title }}
+            <span class="log-timestamp">{{ timestamp }}</span>
+        </div>
+        <div class="log-content-container">
+            <pre class="log-content">{{ log.content }}</pre>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 
 {% endblock %}
