@@ -1,0 +1,234 @@
+.input-container {
+    width: 100%;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    background-color: var(--darker-bg);
+    position: relative;
+}
+
+.input-wrapper {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+#userInput {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    color: var(--light-text);
+    outline: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.2s ease;
+}
+
+#userInput::placeholder {
+    color: var(--muted-text);
+}
+
+#userInput:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(61, 169, 188, 0.2);
+}
+
+#userInput.drag-over {
+    border-color: var(--accent-hover);
+    background-color: rgba(94, 208, 203, 0.1);
+}
+
+/* Dropdown Styles */
+.dropdown-container {
+    position: relative;
+    min-width: 120px;
+}
+
+.dropdown-button {
+    padding: 12px 16px;
+    background-color: var(--input-bg);
+    color: var(--light-text);
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.dropdown-button:hover {
+    background-color: var(--accent-primary);
+    color: white;
+}
+
+.dropdown-button.active {
+    background-color: var(--accent-primary);
+    color: white;
+}
+
+.dropdown-arrow {
+    transition: transform 0.2s ease;
+}
+
+.dropdown-button.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-options {
+    display: none;
+    position: absolute;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    margin-top: 2px;
+    z-index: 100;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dropdown-options.show {
+    display: block;
+}
+
+.option-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.option-item:last-child {
+    border-bottom: none;
+}
+
+.option-item:hover {
+    background-color: var(--darker-bg);
+}
+
+.option-item.selected {
+    background-color: var(--accent-primary);
+    color: white;
+}
+
+.option-item.draggable {
+    cursor: grab;
+}
+
+.option-item.draggable:active {
+    cursor: grabbing;
+}
+
+/* Model Options Styles */
+.model-dropdown-container {
+    position: relative;
+    min-width: 150px;
+}
+
+.model-options {
+    display: none;
+    position: absolute;
+    width: 300px;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    margin-top: 2px;
+    z-index: 100;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.model-options.show {
+    display: block;
+}
+
+.model-option {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.model-option:last-child {
+    border-bottom: none;
+}
+
+.model-option:hover {
+    background-color: var(--darker-bg);
+}
+
+.model-name {
+    font-weight: 500;
+    color: var(--light-text);
+}
+
+.model-checkboxes {
+    display: flex;
+    gap: 15px;
+}
+
+.model-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--muted-text);
+}
+
+.model-checkbox-label input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.model-checkbox-label:hover {
+    color: var(--light-text);
+}
+
+#sendButton {
+    padding: 12px 20px;
+    background-color: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
+    min-width: 80px;
+}
+
+#sendButton:hover {
+    background-color: var(--accent-secondary);
+}
+
+/* QA Pairs Dropdown */
+.qa-dropdown-options {
+    display: none;
+    position: absolute;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    margin-top: 5px;
+    z-index: 100;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.qa-dropdown-options.show {
+    display: block;
+}
+
+.outputs-container {
+    width: 100%;
+    padding-top: 20px;
+}

@@ -12,4 +12,5 @@ QA_PAIRS = (
     ('What is 2 + 2?', '4')
 )
 
-STRATEGIES = ['none']
+# Dummy-Strategies
+STRATEGIES = ['none', 'chain-of-thought', 'self-reflection']

@@ -33,9 +33,7 @@ function createOutputBoxes() {
 }
 
 
-document.addEventListener('DOMContentLoaded', function() {    
+document.addEventListener('DOMContentLoaded', function() {
+    initApp();
     createOutputBoxes();
-    setupPromptHandling();
 });
-
-document.addEventListener('DOMContentLoaded', initApp);

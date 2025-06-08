@@ -24,44 +24,56 @@ async function sendPromptToModel(prompt, model) {
 // Function to handle user input
 async function queryDistribution() {
     const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
     const outputsContainer = document.getElementById('outputsContainer');
 
-    userInput.addEventListener('keypress', async (e) => {
-        if (e.key === 'Enter') {
-            const prompt = userInput.value.trim();
-            if (prompt) {
-                // Get all output boxes (excluding dummy boxes)
-                const outputBoxes = Array.from(outputsContainer.querySelectorAll('.output-box:not(.dummy-box)'));
+    // Common function to process the prompt
+    async function processPrompt() {
+        const prompt = userInput.value.trim();
+        if (prompt) {
+            // Get all output boxes (excluding dummy boxes)
+            const outputBoxes = Array.from(outputsContainer.querySelectorAll('.output-box:not(.dummy-box)'));
+            
+            // Display loading state
+            outputBoxes.forEach(box => {
+                box.innerHTML = '<div class="loading-spinner"></div>';
+                box.style.opacity = '0.8';
+            });
+            
+            // Filter out META_PROMPTING_MODELS_ONLY from MODELS
+            const activeModels = MODELS.filter(model => !META_PROMPTING_MODELS_ONLY.includes(model));
+            
+            try {
+                // Collect all responses before displaying anything
+                const responses = [];
                 
-                // Display loading state
-                outputBoxes.forEach(box => {
-                    box.innerHTML = '<div class="loading-spinner"></div>';
-                    box.style.opacity = '0.8';
-                });
-                
-                // Filter out META_PROMPTING_MODELS_ONLY from MODELS
-                const activeModels = MODELS.filter(model => !META_PROMPTING_MODELS_ONLY.includes(model));
-                
-                try {
-                    // Collect all responses before displaying anything
-                    const responses = [];
-                    
-                    for (const model of activeModels) {
-                        const response = await sendPromptToModel(prompt, model);
-                        responses.push(response);
-                    }
-                    
-                    // Show all results at once
-                    showResults(responses, outputBoxes);
-                } catch (error) {
-                    console.error('Error processing models:', error);
-                    outputBoxes.forEach(box => {
-                        box.innerHTML = `<p>Error: ${error.message}</p>`;
-                        box.style.opacity = '1';
-                    });
+                for (const model of activeModels) {
+                    const response = await sendPromptToModel(prompt, model);
+                    responses.push(response);
                 }
+                
+                // Show all results at once
+                showResults(responses, outputBoxes);
+            } catch (error) {
+                console.error('Error processing models:', error);
+                outputBoxes.forEach(box => {
+                    box.innerHTML = `<p>Error: ${error.message}</p>`;
+                    box.style.opacity = '1';
+                });
             }
         }
+    }
+
+    // Handle Enter key in input field
+    userInput.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter') {
+            await processPrompt();
+        }
+    });
+
+    // Handle Send button click
+    sendButton.addEventListener('click', async () => {
+        await processPrompt();
     });
 }
 
@@ -73,5 +85,7 @@ function showResults(responses, outputBoxes) {
     });
 }
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', queryDistribution);
+// Initialize the function when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    queryDistribution();
+});

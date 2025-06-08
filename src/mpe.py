@@ -53,7 +53,9 @@ def index():
 def get_config():
     return jsonify({
         'models': MODELS,
-        'meta_models': META_PROMPTING_MODELS_ONLY
+        'meta_models': META_PROMPTING_MODELS_ONLY,
+        'qa_pairs': QA_PAIRS,
+        'strategies': STRATEGIES
     })
 
 @app.route('/logs')
@@ -74,7 +76,6 @@ def show_logs():
             logs[key]['content'] = f"Log file not found: {logs[key]['path']}"
 
     return render_template('logs.html', active_tab='logs', logs=logs, timestamp=RUN_TIMESTAMP)
-
 
 @app.route('/api/prompt', methods=['POST'])
 def handle_prompt():
