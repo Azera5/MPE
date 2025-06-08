@@ -3,6 +3,8 @@ MODELS = ['llama3.1:8b',
           'qwen3:8b', 
           'mistral:7b']
 
+META_PROMPTING_MODELS_ONLY = []
+
 # Temporary dummy structure - remove once real dataset is available
 QA_PAIRS = (
     ('What is the capital of France?', 'Paris'),

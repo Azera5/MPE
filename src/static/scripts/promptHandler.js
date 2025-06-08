@@ -1,12 +1,12 @@
-// Function to handle sending prompt to backend and displaying response
-async function sendPromptToLLM(prompt) {
+// Function to handle sending prompt to backend for a specific model
+async function sendPromptToModel(prompt, model) {
     try {
         const response = await fetch('/api/prompt', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ prompt: prompt })
+            body: JSON.stringify({ prompt: prompt, model: model })
         });
 
         if (!response.ok) {
@@ -16,39 +16,62 @@ async function sendPromptToLLM(prompt) {
         const data = await response.json();
         return data.response;
     } catch (error) {
-        console.error('Error sending prompt:', error);
+        console.error(`Error sending prompt to model ${model}:`, error);
         return `Error: ${error.message}`;
     }
 }
 
 // Function to handle user input
-function setupPromptHandling() {
+async function queryDistribution() {
     const userInput = document.getElementById('userInput');
-    const outputBox1 = document.querySelector('.output-box:first-child');
-    const outputBox2 = document.querySelector('.output-box:nth-child(2)');
+    const outputsContainer = document.getElementById('outputsContainer');
 
     userInput.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter') {
             const prompt = userInput.value.trim();
             if (prompt) {
+                // Get all output boxes (excluding dummy boxes)
+                const outputBoxes = Array.from(outputsContainer.querySelectorAll('.output-box:not(.dummy-box)'));
                 
-                // Display "Loading..." while waiting for response
-                outputBox1.textContent = 'Loading...';
-                outputBox2.textContent = 'Loading...';
+                // Display loading state
+                outputBoxes.forEach(box => {
+                    box.innerHTML = '<div class="loading-spinner"></div>';
+                    box.style.opacity = '0.8';
+                });
                 
-                // Send prompt to LLM and get response
-                const llmResponse = await sendPromptToLLM(prompt);
+                // Filter out META_PROMPTING_MODELS_ONLY from MODELS
+                const activeModels = MODELS.filter(model => !META_PROMPTING_MODELS_ONLY.includes(model));
                 
-                // Move previous output to second box and display new response in first box
-                outputBox1.textContent = llmResponse;
-                outputBox2.textContent = 'Output 2';
-
-                // Randomize output positions after receiving response
-                randomizeOutputPositions();
+                try {
+                    // Collect all responses before displaying anything
+                    const responses = [];
+                    
+                    for (const model of activeModels) {
+                        const response = await sendPromptToModel(prompt, model);
+                        responses.push(response);
+                    }
+                    
+                    // Show all results at once
+                    showResults(responses, outputBoxes);
+                } catch (error) {
+                    console.error('Error processing models:', error);
+                    outputBoxes.forEach(box => {
+                        box.innerHTML = `<p>Error: ${error.message}</p>`;
+                        box.style.opacity = '1';
+                    });
+                }
             }
         }
     });
 }
 
+function showResults(responses, outputBoxes) {
+    // Update all boxes in a single operation
+    outputBoxes.forEach((box, index) => {
+        box.textContent = responses[index] || 'No response received';
+        box.style.opacity = '1';
+    });
+}
+
 // Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', setupPromptHandling);
+document.addEventListener('DOMContentLoaded', queryDistribution);

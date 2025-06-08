@@ -7,13 +7,14 @@ from sqlalchemy import create_engine, exists
 
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+import time
 
 import pandas as pd
 import numpy as np
 
 from db_models import Base, User, Model, Strategy, Question, Query, Answer, Feedback, Metaprompt
 
-from globals import MODELS, QA_PAIRS, STRATEGIES
+from globals import MODELS, META_PROMPTING_MODELS_ONLY, QA_PAIRS, STRATEGIES
 from pathlib import Path
 
 # Initialize Flask application
@@ -23,7 +24,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 3600
 
 src_dir = Path(__file__).parent
 script_path = src_dir / "start_service.sh"
-log_path = src_dir / ".logs" 
+log_path = src_dir / ".logs"
+ollama_sif_path = src_dir / "sifs" / "ollama.sif"
 
 # Database configuration
 DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
@@ -46,6 +48,13 @@ def index():
     """Render the main index page"""
     return render_template('index.html', active_tab='prompt')
 
+
+@app.route('/api/config')
+def get_config():
+    return jsonify({
+        'models': MODELS,
+        'meta_models': META_PROMPTING_MODELS_ONLY
+    })
 
 @app.route('/logs')
 def show_logs():
@@ -102,7 +111,6 @@ def handle_prompt():
         'response': response
     })
 
-
 def generate_response(prompt, model=None):
     """
     Send a prompt to the LLM and get the response.
@@ -116,7 +124,7 @@ def generate_response(prompt, model=None):
     payload = {
         "model": model,
         "prompt": prompt,
-        "stream": False  # We want a single response, not a stream
+        "stream": False
     }
 
     try:
@@ -125,7 +133,6 @@ def generate_response(prompt, model=None):
         return response.json().get('response', 'No response received')
     except requests.exceptions.RequestException as e:  # Using requests.exceptions
         return f"Error communicating with Ollama: {str(e)}"
-
 
 def init_database():
     """Initialize the database by creating all tables and populating initial data"""
@@ -178,25 +185,87 @@ def init_database():
         if session:
             session.close()
 
+def get_installed_models():
+    """Get all models installed in Ollama"""
+    try:        
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Validiere Response-Struktur
+        if not isinstance(data, dict):
+            print(f"Expected dict, got {type(data)}")
+            return []
+            
+        models = data.get('models', [])        
+        
+        if not isinstance(models, list):
+            print(f"Expected list for models, got {type(models)}")
+            return []
+                               
+        return [model['name'] for model in models]
+        
+    except requests.exceptions.ConnectionError:
+        print(f"Cannot connect to Ollama at {OLLAMA_BASE_URL}")
+        return []
+    except requests.exceptions.Timeout:
+        print("Request to Ollama timed out")
+        return []
+    except requests.RequestException as e:
+        print(f"Error fetching installed models from Ollama: {e}")
+        return []
+    except ValueError as e:
+        print(f"Invalid JSON response: {e}")
+        return []
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return []
 
-def get_db_session():
-    """Get a database session"""
-    return SessionLocal()
+def wait_for_ollama(max_retries=30, check_interval=0.5):
+    """Wait for Ollama service"""
+    dots = 0
+    for attempt in range(max_retries):
+        # Check connection
+        try:
+            response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3)
+            if response.ok:
+                print("\nOllama ready!" + " "*20)  
+                return True
+        except:  
+            pass
 
-# ollama run implies ollama pull if the requested model is not available
+        # Update waiting animation
+        dots = (dots + 1) % 4  # Cycle 0-3
+        print(f"Waiting for Ollama{'.'*dots}", end='\r', flush=True)
+        time.sleep(check_interval)
+    
+    print("\nOllama not responding")
+    return False
+
 def start_service():
     """
     Start ollama service via Apptainer.
     """
-    # if current_model == new_model:
-    #     return True
     
     try:
+        # First start the service
         cmd = (f'chmod a+x "{script_path}" && '
                f'"{script_path}" "{RUN_TIMESTAMP}" &')
         
-        result = subprocess.run(cmd, shell=True, check=True)
-        return result.returncode
+        subprocess.run(cmd, shell=True, check=True)
+        
+        wait_for_ollama()
+        
+        # Check missing models
+        installed_models = get_installed_models()
+        missing_models = set(MODELS) - set(installed_models)            
+        
+        if missing_models:
+            if missing_models:
+                print(f'\033[1;91mWarning:\033[0m \033[1mThe following models are missing: [{", ".join(missing_models)}]\033[0m')
+                print(f'\n\n------------------------------------\n\n')
+                        
     except subprocess.CalledProcessError as e:
         print(f"Error while starting service: {e}")
         return False
@@ -234,10 +303,6 @@ def switch_model(new_model):
         print(f"Unexpected error: {e}")
         return False
 
-# crude service interactions, for test purposes only
-def crude_start_service():
-    os.system(f'chmod a+x "{script_path}" && "{script_path}" "{RUN_TIMESTAMP}"')
-
 def crude_switch_model(new_model):
     if current_model == new_model:
         pass
@@ -245,7 +310,6 @@ def crude_switch_model(new_model):
         os.system(f'apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}')
     else:
         os.system(f'apptainer exec instance://{INSTANCE_NAME} ollama stop {current_model} && apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}')
-
 
 @app.route('/table', methods=("POST", "GET"))
 def html_table():
@@ -264,6 +328,6 @@ def html_table():
 if __name__ == '__main__':
     init_database()
     start_service()
-    
+
     # Using a dynamically assigned free port
-    app.run(host='127.0.0.1', port=0)
+    app.run(host='127.0.0.1', port=0, debug=False)
