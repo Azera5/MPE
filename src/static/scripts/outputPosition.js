@@ -1,34 +1,35 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const container = document.getElementById('outputsContainer');
-    const boxes = Array.from(container.getElementsByClassName('output-box'));
-
-    const updateDummyBoxes = () => {
-        document.querySelectorAll('.dummy-box').forEach(d => d.remove());
-        
-        const containerWidth = container.clientWidth;
-        const boxWidth = 420;
-        const gap = 20;        
-
-        const boxesPerRow = Math.max(1, Math.floor((containerWidth + gap) / (boxWidth + gap)));
-        
-        const visibleBoxes = container.querySelectorAll('.output-box').length;
-        if (visibleBoxes > boxesPerRow) {
-            const remainder = visibleBoxes % boxesPerRow;
-            if (remainder > 0) {
-                const dummyCount = boxesPerRow - remainder;
-                for (let i = 0; i < dummyCount; i++) {
-                    const dummy = document.createElement('div');
-                    dummy.className = 'dummy-box';
-                    container.appendChild(dummy);
-                }
-            }
-        }
-    };
-    
+    updateDummyBoxes();
     // Update dummy boxes on window resize
     window.addEventListener('resize', updateDummyBoxes);
 });
 
+// Function to update dummy boxes (now accessible globally)
+function updateDummyBoxes() {
+    const outputsContainer = document.getElementById('outputsContainer');
+    if (!outputsContainer) return;
+    
+    document.querySelectorAll('.dummy-box').forEach(d => d.remove());
+    
+    const containerWidth = outputsContainer.clientWidth;
+    const boxWidth = 420;
+    const gap = 20;        
+
+    const boxesPerRow = Math.max(1, Math.floor((containerWidth + gap) / (boxWidth + gap)));
+    
+    const visibleBoxes = outputsContainer.querySelectorAll('.output-box').length;
+    if (visibleBoxes > boxesPerRow) {
+        const remainder = visibleBoxes % boxesPerRow;
+        if (remainder > 0) {
+            const dummyCount = boxesPerRow - remainder;
+            for (let i = 0; i < dummyCount; i++) {
+                const dummy = document.createElement('div');
+                dummy.className = 'dummy-box';
+                outputsContainer.appendChild(dummy);
+            }
+        }
+    }
+}
 
 function randomizeOutputPositions() {
     const container = document.getElementById('outputsContainer');

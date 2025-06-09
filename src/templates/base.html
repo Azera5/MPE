@@ -7,6 +7,8 @@
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/colors.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main-container.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/output-box.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/drop-down-input.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tab-bar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
 </head>
@@ -22,9 +24,10 @@
     {% block content %}{% endblock %}
 
     </div>
-    
+    <script src="{{ url_for('static', filename='scripts/globals.js') }}"> </script>
     <script src="{{ url_for('static', filename='scripts/outputBoxes.js') }}"> </script>
     <script src="{{ url_for('static', filename='scripts/outputPosition.js') }}"> </script>
+    <script src="{{ url_for('static', filename='scripts/dropDownHandler.js') }}"> </script>
     <script src="{{ url_for('static', filename='scripts/promptHandler.js') }}"></script>
 </body>
 </html> 

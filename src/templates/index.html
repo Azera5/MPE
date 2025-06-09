@@ -1,14 +1,40 @@
 {% extends "base.html" %}
 {% block content %}
-    
-    <div class="input-container">
-            <input type="text" id="userInput" placeholder="Input">
+
+<div class="input-container">
+        <div class="input-wrapper">
+            <input type="text" id="userInput" placeholder="Input or drag from options">
+            
+            <div class="dropdown-container">
+                <button class="dropdown-button" id="strategyDropdown">
+                    Strategy
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div class="dropdown-options" id="strategyOptions">
+                    <!-- Strategy options will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="model-dropdown-container">
+                <button class="dropdown-button" id="modelDropdown">
+                    Model
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div class="model-options" id="modelOptions">
+                    <!-- Model options with checkboxes will be here -->
+                </div>
+            </div>
+            
+            <button id="sendButton">Send</button>
         </div>
         
-        <div class="outputs-container" id="outputsContainer">            
-            <!-- Output boxes will be generated dynamically -->
+        <div class="qa-dropdown-options" id="dropdownOptions">
+            <!-- QA Pair options will be populated by JavaScript -->
         </div>
     </div>
 
+    <div class="outputs-container" id="outputsContainer">
+        <!-- Output boxes will be generated dynamically -->
+    </div>
 
 {% endblock %}

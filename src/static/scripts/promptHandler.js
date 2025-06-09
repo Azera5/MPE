@@ -8,11 +8,9 @@ async function sendPromptToModel(prompt, model) {
             },
             body: JSON.stringify({ prompt: prompt, model: model })
         });
-
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-
         const data = await response.json();
         return data.response;
     } catch (error) {
@@ -21,47 +19,83 @@ async function sendPromptToModel(prompt, model) {
     }
 }
 
+// Dummy function for meta-prompting (to be expanded later)
+async function applyMetaPrompt(prompt, strategy, model) {
+    // For now, just return the original prompt
+    // This will be expanded later to actually apply meta-prompting strategies
+    console.log('applyMetaPrompt called with:', { prompt, strategy, model });
+    return prompt;
+}
+
 // Function to handle user input
 async function queryDistribution() {
     const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
     const outputsContainer = document.getElementById('outputsContainer');
-
+    
+    // Common function to process the prompt
+    async function processPrompt() {
+        const prompt = userInput.value.trim();
+        if (!prompt) return;
+        
+        // Get all output boxes (excluding dummy boxes)
+        const outputBoxes = Array.from(outputsContainer.querySelectorAll('.output-box:not(.dummy-box)'));
+        
+        // Display loading state
+        outputBoxes.forEach(box => {
+            box.innerHTML = '<div class="loading-spinner"></div>';
+            box.style.opacity = '0.8';
+        });
+        
+        try {
+            // Collect all responses before displaying anything
+            const responses = [];
+            
+            for (const box of outputBoxes) {
+                let response;
+                
+                if (box.dataset.isRaw === 'true') {
+                    // Raw output - send prompt directly to output model
+                    const outputModel = box.dataset.outputModel;
+                    response = await sendPromptToModel(prompt, outputModel);
+                } else {
+                    // Meta-prompted output
+                    const outputModel = box.dataset.outputModel;
+                    const promptModel = box.dataset.promptModel;
+                    const strategy = box.dataset.strategy;
+                    
+                    // Apply meta-prompting strategy
+                    const metaPrompt = await applyMetaPrompt(prompt, strategy, promptModel);
+                    
+                    // Send meta-prompted version to output model
+                    response = await sendPromptToModel(metaPrompt, outputModel);
+                }
+                
+                responses.push(response);
+            }
+            
+            // Show all results at once
+            showResults(responses, outputBoxes);
+            
+        } catch (error) {
+            console.error('Error processing models:', error);
+            outputBoxes.forEach(box => {
+                box.innerHTML = `<p>Error: ${error.message}</p>`;
+                box.style.opacity = '1';
+            });
+        }
+    }
+    
+    // Handle Enter key in input field
     userInput.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter') {
-            const prompt = userInput.value.trim();
-            if (prompt) {
-                // Get all output boxes (excluding dummy boxes)
-                const outputBoxes = Array.from(outputsContainer.querySelectorAll('.output-box:not(.dummy-box)'));
-                
-                // Display loading state
-                outputBoxes.forEach(box => {
-                    box.innerHTML = '<div class="loading-spinner"></div>';
-                    box.style.opacity = '0.8';
-                });
-                
-                // Filter out META_PROMPTING_MODELS_ONLY from MODELS
-                const activeModels = MODELS.filter(model => !META_PROMPTING_MODELS_ONLY.includes(model));
-                
-                try {
-                    // Collect all responses before displaying anything
-                    const responses = [];
-                    
-                    for (const model of activeModels) {
-                        const response = await sendPromptToModel(prompt, model);
-                        responses.push(response);
-                    }
-                    
-                    // Show all results at once
-                    showResults(responses, outputBoxes);
-                } catch (error) {
-                    console.error('Error processing models:', error);
-                    outputBoxes.forEach(box => {
-                        box.innerHTML = `<p>Error: ${error.message}</p>`;
-                        box.style.opacity = '1';
-                    });
-                }
-            }
+            await processPrompt();
         }
+    });
+    
+    // Handle Send button click
+    sendButton.addEventListener('click', async () => {
+        await processPrompt();
     });
 }
 
@@ -73,5 +107,7 @@ function showResults(responses, outputBoxes) {
     });
 }
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', queryDistribution);
+// Initialize the function when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    queryDistribution();
+});
