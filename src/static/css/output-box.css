@@ -17,9 +17,11 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    text-align: center;
+    text-align: left;
     background-color: var(--input-bg);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);    
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .output-box {
