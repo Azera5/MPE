@@ -30,7 +30,8 @@ ollama_sif_path = src_dir / "sifs" / "ollama.sif"
 # Database configuration
 DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
 engine = create_engine(DATABASE_URL, echo=False)  # echo=True for SQL debugging
-SessionLocal = sessionmaker(bind=engine)
+Session = sessionmaker(bind=engine)
+
 
 # Apptainer configuration
 INSTANCE_NAME = 'ollama_instance'
@@ -47,7 +48,6 @@ RUN_TIMESTAMP=datetime.now().strftime("%Y_%m_%d@%H_%M_%S")
 def index():
     """Render the main index page"""
     return render_template('index.html', active_tab='prompt')
-
 
 @app.route('/api/config')
 def get_config():
@@ -112,6 +112,14 @@ def handle_prompt():
         'response': response
     })
 
+@app.route('/api/users', methods=['GET', 'POST'])
+def handle_users():
+    """Handle both getting user suggestions and creating new users"""
+    if flask_request.method == 'GET':
+        return get_user_suggestions()
+    elif flask_request.method == 'POST':
+        return create_user()
+
 def generate_response(prompt, model=None):
     """
     Send a prompt to the LLM and get the response.
@@ -141,10 +149,8 @@ def init_database():
     try:
         # Create all tables based on the models
         Base.metadata.create_all(engine)
-        print("Database tables created successfully!")
-        
-        # Create a session to add data
-        Session = sessionmaker(bind=engine)
+        print("Database tables created successfully!")       
+
         session = Session()
         
         # Models        
@@ -186,6 +192,53 @@ def init_database():
         if session:
             session.close()
 
+def get_user_suggestions():
+    """Get all users filtered by the query parameter"""
+    filter_text = flask_request.args.get('filter', '').lower()
+    session = Session()
+    
+    try:
+        # Get all users that contain the filter text
+        users = session.query(User.user).filter(User.user.ilike(f'%{filter_text}%')).all()
+        # Convert list of tuples to list of strings
+        user_list = [user[0] for user in users]
+        return jsonify(user_list)
+    except Exception as e:
+        print(f"Error fetching user suggestions: {e}")
+        return jsonify([])
+    finally:
+        session.close()
+
+def create_user():
+    """Create a new user in the database"""
+    user_data = flask_request.json
+    if not user_data or 'user' not in user_data:
+        return jsonify({'error': 'User name is required'}), 400
+    
+    username = user_data['user'].strip()
+    if not username:
+        return jsonify({'error': 'User name cannot be empty'}), 400
+
+    session = Session()
+    
+    try:
+        # Check if user already exists
+        existing_user = session.query(User).filter_by(user=username).first()
+        if existing_user:
+            return jsonify({'message': 'User already exists'}), 200
+            
+        # Create new user
+        new_user = User(user=username)
+        session.add(new_user)
+        session.commit()
+        return jsonify({'message': 'User created successfully'}), 201
+    except Exception as e:
+        session.rollback()
+        print(f"Error creating user: {e}")
+        return jsonify({'error': 'Failed to create user'}), 500
+    finally:
+        session.close()
+          
 def get_installed_models():
     """Get all models installed in Ollama"""
     try:        
