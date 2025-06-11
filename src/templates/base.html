@@ -11,12 +11,27 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/drop-down-input.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tab-bar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user-popup.css') }}">
 </head>
 <body>
+
+    <div class="user-button-container">
+        <button id="userButton" class="user-button">U</button>
+    </div>
+
     <div class="tab-bar">
         <a href="/" class="tab {% if active_tab == 'prompt' %}active{% endif %}">Prompting</a>
         <a href="/table" class="tab {% if active_tab == 'table' %}active{% endif %}">Tables</a>
         <a href="/logs" class="tab {% if active_tab == 'logs' %}active{% endif %}">Logs</a>
+    </div>
+
+    <div id="userPopup" class="user-popup">
+        <div class="user-popup-content">
+            <h3>Select User</h3>
+            <input type="text" id="userIdInput" class="user-input" placeholder="Enter user ID">
+            <div id="userSuggestions" class="user-suggestions"></div>
+            <button id="saveUserButton" class="save-user-button">Save</button>
+        </div>
     </div>
 
     <div class="container">
@@ -29,5 +44,6 @@
     <script src="{{ url_for('static', filename='scripts/outputPosition.js') }}"> </script>
     <script src="{{ url_for('static', filename='scripts/dropDownHandler.js') }}"> </script>
     <script src="{{ url_for('static', filename='scripts/promptHandler.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/userHandler.js') }}"></script>
 </body>
 </html> 

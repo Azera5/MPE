@@ -9,6 +9,7 @@
     box-shadow: 0 2px 8px var(--shadow-color);
     display: flex;
     gap: 4px;
+    margin-top: 5px;
 }
 
 .tab {
@@ -46,4 +47,37 @@
         padding: 8px 0;
         font-size: 14px;
     }
+}
+
+/* User Button Container */
+.user-button-container {
+    max-width: 90%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    padding-bottom: 8px;
+    position: relative;
+}
+
+/* User Button Styles */
+.user-button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: var(--accent-primary);
+    color: white;
+    border: none;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.user-button:hover {
+    background-color: var(--accent-hover);
+    transform: scale(1.05);
 }

@@ -1,9 +1,28 @@
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Float, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-
+from enum import Enum
 
 Base = declarative_base()
+
+
+# Python Enums definieren
+class QuestionType(str, Enum):
+    ADVERSARIAL = "Adversarial"
+    NON_ADVERSARIAL = "Non-Adversarial"
+
+class QuestionCategory(str, Enum):
+    # Adversarial categories
+    MISCONCEPTIONS = "Misconceptions"
+    HEALTH = "Health"
+    NUTRITION = "Nutrition"
+    
+    # Non-Adversarial categories
+    CONFUSION_PLACES = "Confusion: Places"
+    CONFUSION_OTHER = "Confusion: Other"
+    WEATHER = "Weather"
+    STATISTICS = "Statistics"
+    HISTORY = "History"
+    LOGICAL_FALSEHOOD = "Logical Falsehood"
 
 class User(Base):
     """User table to store user information"""
@@ -30,8 +49,11 @@ class Question(Base):
     __tablename__ = 'questions'
     
     id = Column(Integer, primary_key=True)
+    type = Column(SQLEnum(QuestionType), nullable=False)
+    category = Column(SQLEnum(QuestionCategory), nullable=False)
     question = Column(Text)
-    reference_answer = Column(Text)
+    correct_answer = Column(Text)
+    source = Column(Text)
 
 
 class Query(Base):

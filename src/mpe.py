@@ -12,6 +12,7 @@ import time
 import pandas as pd
 import numpy as np
 
+from dataset import filter_truthfulqa_data
 from db_models import Base, User, Model, Strategy, Question, Query, Answer, Feedback, Metaprompt
 
 from globals import MODELS, META_PROMPTING_MODELS_ONLY, QA_PAIRS, STRATEGIES
@@ -30,7 +31,9 @@ ollama_sif_path = src_dir / "sifs" / "ollama.sif"
 # Database configuration
 DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
 engine = create_engine(DATABASE_URL, echo=False)  # echo=True for SQL debugging
-SessionLocal = sessionmaker(bind=engine)
+Session = sessionmaker(bind=engine)
+
+filtered_data = filter_truthfulqa_data(pd)
 
 # Apptainer configuration
 INSTANCE_NAME = 'ollama_instance'
@@ -47,7 +50,6 @@ RUN_TIMESTAMP=datetime.now().strftime("%Y_%m_%d@%H_%M_%S")
 def index():
     """Render the main index page"""
     return render_template('index.html', active_tab='prompt')
-
 
 @app.route('/api/config')
 def get_config():
@@ -112,6 +114,206 @@ def handle_prompt():
         'response': response
     })
 
+@app.route('/api/users', methods=['GET', 'POST'])
+def handle_users():
+    """Handle both getting user suggestions and creating new users"""
+    if flask_request.method == 'GET':
+        return get_user_suggestions()
+    elif flask_request.method == 'POST':
+        return create_user()
+
+@app.route('/insert_query', methods=['POST'])
+def insert_query():
+    """Create a new query from question text and user"""
+    query_data = flask_request.json
+    session = Session()
+   
+    if 'user' not in query_data or 'question_text' not in query_data:
+        return jsonify({'error': 'Missing required fields: user, question_text'}), 400
+
+    try:
+        question = session.query(Question).filter_by(question=query_data['question_text']).first()
+        if not question:
+            return jsonify({
+                    'message': 'Operation aborted',
+                    'reason': 'Question not found - no entries were processed'
+                }), 200 
+        
+        if not session.query(User).filter_by(user=query_data['user']).first():
+            create_user()
+        
+        new_query = Query(
+            user=query_data['user'],
+            question_id=question.id,
+            best_answer_id=None
+        )
+
+        session.add(new_query)
+        session.commit()
+
+        return jsonify({
+            'message': 'Query created successfully',
+            'query_id': new_query.id,
+            'question_id': question.id,
+            'user': new_query.user
+        }), 201
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({
+            'error': 'Failed to create query',
+            'details': str(e)
+        }), 500
+    finally:
+        session.close()
+
+@app.route('/insert_answer', methods=['POST'])
+def insert_answer():
+    """Create new answers in the database"""
+    data = flask_request.json
+    session = Session()
+
+    if 'answers' not in data:
+        return jsonify({'error': 'Missing "answers" list'}), 400
+
+    responses = []
+
+    try:
+        for answer_data in data['answers']:
+            required_fields = ['question_text', 'answer', 'model', 'user']
+            if not all(field in answer_data for field in required_fields):
+                return jsonify({'error': f'Missing fields in one of the answers: {answer_data}'}), 400
+
+            # 1. Find the query
+            query = session.query(Query).join(Question).filter(
+                Question.question == answer_data['question_text'],
+                Query.user == answer_data['user']
+            ).first()
+            if not query:
+                return jsonify({
+                    'message': 'Operation aborted',
+                    'reason': 'Query not found - no entries were processed'
+                }), 200 
+
+            # 2. Find the model by name
+            model = session.query(Model).filter_by(
+                name=answer_data['model']
+            ).first()
+            if not model:
+                continue
+
+            # 3. Create new answer
+            new_answer = Answer(
+                answer=answer_data['answer'],
+                model=model.id,
+                query_id=query.id,
+                position=answer_data.get('position', 0),
+                score=answer_data.get('score', 0.0),
+                response_time=answer_data.get('response_time', 0.0)
+            )
+
+            session.add(new_answer)
+            session.flush()  # To get ID before commit
+
+            responses.append({
+                'answer_id': new_answer.id,
+                'query_id': query.id,
+                'model_id': model.id
+            })
+
+        session.commit()
+        return jsonify({
+            'message': 'Answers created successfully',
+            'results': responses
+        }), 201
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': 'Failed to create answers', 'details': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/insert_metaprompt', methods=['POST'])
+def insert_metaprompt():
+    """Create multiple metaprompt entries from provided list"""
+    data_list = flask_request.json  # Expecting a list of dicts
+    session = Session()
+
+    if not isinstance(data_list, list):
+        return jsonify({'error': 'Expected a list of metaprompt entries'}), 400
+
+    results = []
+    errors = []
+
+    for idx, data in enumerate(data_list):
+        try:
+            # Check required fields
+            required_fields = ['user', 'question_text', 'strategy_name', 'metaPrompt', 'model', 'answer_text']
+            if not all(field in data for field in required_fields):
+                errors.append({'index': idx, 'error': 'Missing required fields'})
+                continue
+
+            # 1. Find the query
+            query = session.query(Query).join(Question).filter(
+                Question.question == data['question_text'],
+                Query.user == data['user']
+            ).first()
+
+            if not query:
+                return jsonify({
+                    'message': 'Operation aborted',
+                    'reason': 'Query not found - no entries were processed'
+                }), 200 
+
+            # 2. Find strategy
+            strategy = session.query(Strategy).filter_by(name=data['strategy_name']).first()
+            if not strategy:
+                errors.append({'index': idx, 'error': 'Strategy not found'})
+                continue
+
+            # 3. Find model
+            model = session.query(Model).filter_by(name=data['model']).first()
+            if not model:
+                errors.append({'index': idx, 'error': 'Model not found'})
+                continue
+
+            # 4. Find answer
+            answer = session.query(Answer).filter_by(answer=data['answer_text']).first()
+            if not answer:
+                errors.append({'index': idx, 'error': 'Answer not found'})
+                continue
+
+            # 5. Create Metaprompt
+            new_metaprompt = Metaprompt(
+                query_id=query.id,
+                strategy_id=strategy.id,
+                model_id=model.id,
+                prompt=data['metaPrompt'],
+                answer_id=answer.id
+            )
+
+            session.add(new_metaprompt)
+            results.append({'index': idx, 'status': 'created'})
+
+        except Exception as e:
+            session.rollback()
+            errors.append({'index': idx, 'error': str(e)})
+
+    try:
+        session.commit()
+    except Exception as commit_error:
+        session.rollback()
+        return jsonify({'error': 'Failed to commit metaprompts', 'details': str(commit_error)}), 500
+    finally:
+        session.close()
+
+    return jsonify({
+        'message': 'Metaprompt insert completed',
+        'created': results,
+        'errors': errors
+    }), 207 if errors else 201
+
+
 def generate_response(prompt, model=None):
     """
     Send a prompt to the LLM and get the response.
@@ -141,10 +343,8 @@ def init_database():
     try:
         # Create all tables based on the models
         Base.metadata.create_all(engine)
-        print("Database tables created successfully!")
-        
-        # Create a session to add data
-        Session = sessionmaker(bind=engine)
+        print("Database tables created successfully!")       
+
         session = Session()
         
         # Models        
@@ -166,11 +366,17 @@ def init_database():
         
         # Questions
         print("Adding questions...")
-        for question_text, reference_answer in QA_PAIRS:
+        for _, row in filtered_data.iterrows():
             # Check if question already exists
-            existing_question = session.query(Question).filter_by(question=question_text).first()
+            existing_question = session.query(Question).filter_by(question=row['Question']).first()
             if not existing_question:
-                question = Question(question=question_text, reference_answer=reference_answer)
+                question = Question(
+                    type=row['Type'],
+                    category=row['Category'],
+                    question=row['Question'],
+                    correct_answer=row['Correct Answers'],
+                    source=row['Source']
+                )
                 session.add(question)
         
         # Commit all changes
@@ -186,6 +392,80 @@ def init_database():
         if session:
             session.close()
 
+def get_user_suggestions():
+    """Get all users filtered by the query parameter"""
+    filter_text = flask_request.args.get('filter', '').lower()
+    session = Session()
+    
+    try:
+        # Get all users that contain the filter text
+        users = session.query(User.user).filter(User.user.ilike(f'%{filter_text}%')).all()
+        # Convert list of tuples to list of strings
+        user_list = [user[0] for user in users]
+        return jsonify(user_list)
+    except Exception as e:
+        print(f"Error fetching user suggestions: {e}")
+        return jsonify([])
+    finally:
+        session.close()
+
+def create_user():
+    """Create a new user in the database"""
+    user_data = flask_request.json
+    if not user_data or 'user' not in user_data:
+        return jsonify({'error': 'User name is required'}), 400
+    
+    username = user_data['user'].strip()
+    if not username:
+        return jsonify({'error': 'User name cannot be empty'}), 400
+
+    session = Session()
+    
+    try:
+        # Check if user already exists
+        existing_user = session.query(User).filter_by(user=username).first()
+        if existing_user:
+            return jsonify({'message': 'User already exists'}), 200
+            
+        # Create new user
+        new_user = User(user=username)
+        session.add(new_user)
+        session.commit()
+        return jsonify({'message': 'User created successfully'}), 201
+    except Exception as e:
+        session.rollback()
+        print(f"Error creating user: {e}")
+        return jsonify({'error': 'Failed to create user'}), 500
+    finally:
+        session.close()
+
+def load_qa_pairs_from_db():
+    """
+    Load all questions and their correct answers from the database
+    into the global QA_PAIRS variable.
+    """
+    global QA_PAIRS
+    session = None
+    
+    try:
+        session = Session()
+        
+        # Query all questions and convert to plain tuples immediately
+        questions = session.query(Question.question, Question.correct_answer).all()
+        
+        # Convert SQLAlchemy Row objects to plain Python tuples
+        QA_PAIRS = tuple((str(q.question), str(q.correct_answer)) for q in questions)
+        
+        print(f"Loaded {len(QA_PAIRS)} QA pairs into global variable")
+        return True
+        
+    except Exception as e:
+        print(f"Error loading QA pairs from database: {e}")
+        return False
+    finally:
+        if session:
+            session.close()
+            
 def get_installed_models():
     """Get all models installed in Ollama"""
     try:        
@@ -328,6 +608,7 @@ def html_table():
 
 if __name__ == '__main__':
     init_database()
+    load_qa_pairs_from_db()
     start_service()
 
     # Using a dynamically assigned free port
