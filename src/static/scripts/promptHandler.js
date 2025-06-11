@@ -24,7 +24,11 @@ async function applyMetaPrompt(prompt, strategy, model) {
     // For now, just return the original prompt
     // This will be expanded later to actually apply meta-prompting strategies
     console.log('applyMetaPrompt called with:', { prompt, strategy, model });
-    return prompt;
+    return {
+            metaPrompt: prompt,
+            strategyId: parseInt(strategy), // Strategy ID for backend
+            modelId: parseInt(model) // Model ID for backend
+        };
 }
 
 // Function to handle user input
@@ -49,33 +53,101 @@ async function queryDistribution() {
         
         try {
             // Collect all responses before displaying anything
+            const answersData = [];
+            const metaPromptsData = [];
             const responses = [];
             
             for (const box of outputBoxes) {
                 let response;
+                let metaPromptResult;
+                let outputModel = box.dataset.outputModel;
                 
-                if (box.dataset.isRaw === 'true') {
-                    // Raw output - send prompt directly to output model
-                    const outputModel = box.dataset.outputModel;
+                
+                if (box.dataset.isRaw === 'true') { 
+                    // Raw output                    
                     response = await sendPromptToModel(prompt, outputModel);
                 } else {
-                    // Meta-prompted output
-                    const outputModel = box.dataset.outputModel;
+                    // Meta-prompted output                    
                     const promptModel = box.dataset.promptModel;
                     const strategy = box.dataset.strategy;
                     
-                    // Apply meta-prompting strategy
-                    const metaPrompt = await applyMetaPrompt(prompt, strategy, promptModel);
+                    metaPromptResult = await applyMetaPrompt(prompt, strategy, promptModel);
+                    response = await sendPromptToModel(metaPromptResult.metaPrompt, outputModel);
                     
-                    // Send meta-prompted version to output model
-                    response = await sendPromptToModel(metaPrompt, outputModel);
-                }
+                    // Save data for metaprompt
+                    metaPromptsData.push({
+                        user: currentUser,
+                        question_text: prompt,
+                        strategy_name: strategy,
+                        metaPrompt: metaPromptResult.metaPrompt,
+                        model: promptModel,
+                        answer_text: response
+                    });
+                }                
                 
                 responses.push(response);
+                
+                answersData.push({
+                    user: currentUser,
+                    question_text: prompt,
+                    answer: response,
+                    model: outputModel,
+                    position: 0, // Not implemented yet
+                    score: 0.0 // Not implemented yet
+                });
+
+            
             }
             
-            // Show all results at once
             showResults(responses, outputBoxes);
+
+            const insertQueryData = {
+                user: currentUser,
+                question_text: prompt
+            };
+
+            const backendResponse_insert_query = await fetch('/insert_query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(insertQueryData)
+            });
+
+            const result_backendResponse_insert_query = await backendResponse_insert_query.json();
+            console.log(result_backendResponse_insert_query);
+            
+            const backendResponse_insert_answer = await fetch('/insert_answer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    answers: answersData                    
+                })
+            });
+            
+            const result_backendResponse_insert_answer = await backendResponse_insert_answer.json();
+            if (!backendResponse_insert_answer.ok) {
+                console.error('Backend error:', result_backendResponse_insert_answer);
+            } else {
+                console.log('Interaction saved:', result_backendResponse_insert_answer);
+            }
+
+            const backendResponse_insert_metaPrompt = await fetch('/insert_metaprompt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(metaPromptsData)
+            });
+
+            const result_backendResponse_insert_metaPrompt = await backendResponse_insert_metaPrompt.json();
+            if (!backendResponse_insert_metaPrompt.ok) {
+                console.error('Backend error:', result_backendResponse_insert_metaPrompt);
+            } else {
+                console.log('Interaction saved:', result_backendResponse_insert_metaPrompt);
+            }
             
         } catch (error) {
             console.error('Error processing models:', error);

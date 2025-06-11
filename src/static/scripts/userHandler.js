@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveUserButton = document.getElementById('saveUserButton');
     
     // Load current user from local storage or set default value
-    let currentUser = localStorage.getItem('currentUser') || 'User';
+    currentUser = localStorage.getItem('currentUser') || 'User';
     updateUserButton(currentUser);
     
     userButton.addEventListener('click', function() {
