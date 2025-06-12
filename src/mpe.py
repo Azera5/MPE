@@ -594,17 +594,16 @@ def crude_switch_model(new_model):
 
 @app.route('/table', methods=("POST", "GET"))
 def html_table():
-    df = pd.read_sql_query("""SELECT *
-                              from metaprompts
-                                       join main.queries q on q.id = metaprompts.query_id
-                                       join main.answers a on q.id = a.query_id
-                                       join main.questions q2 on q.question_id = q2.id
-                                       join main.users u on q.user = u.user
-                                       join main.feedback f on a.feedback_id = f.id
-                                       join main.models m on a.model = m.id
-                                       join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
+    df = pd.read_sql_query("""SELECT u.user as User, q2.question as QuestionText, prompt as Prompt, a.answer as AnswerText, s.name as StrategyName, m.name as ModelName
+                                    from metaprompts
+                                    join main.queries q on q.id = metaprompts.query_id
+                                    join main.answers a on q.id = a.query_id
+                                    join main.questions q2 on q.question_id = q2.id
+                                    join main.users u on q.user = u.user
+                                    join main.models m on a.model = m.id
+                                    join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
 
-    return render_template('data.html', active_tab='table', tables=[df.to_html(classes='data', header="true")])
+    return render_template("data.html", column_names=df.columns.values, row_data=list(df.values.tolist()),link_column="User", zip=zip)
 
 if __name__ == '__main__':
     init_database()

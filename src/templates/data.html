@@ -1,10 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
-
-
-{% for table in tables %}
-            {{ table|safe }}
-{% endfor %}
-
+    <head>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/colors.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/main-container.css') }}">
+        <script src="https://cdn.tailwindcss.com"></script>
+          <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+              primcol: '#399f9a',
+              oddcol: '#c9d9da',
+          }
+        }
+      }
+    }
+  </script>
+    </head>
+    <table class="table-auto text-lg border-separate">
+        <tr class="w-full bg-primcol text-white h-10">
+            {% for col in column_names %}
+                <th class = "p-8" >{{ col }}</th>
+            {% endfor %}
+        </tr>
+        {% for row in row_data %}
+            <tr class="even:bg-oddcol odd:bg-white">
+                {% for col, row_ in zip(column_names, row) %}
+                        <td class = "p-4">{{ row_ }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </table>
 
 {% endblock %}
+
