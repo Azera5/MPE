@@ -3,6 +3,8 @@ function saveStateToLocalStorage() {
     const stateData = {
         modelSelections: modelSelections,
         selectedStrategies: Array.from(selectedStrategies),
+        outputBoxesContent: outputBoxesContent,
+        currentUser: currentUser,
         timestamp: Date.now()
     };
     
@@ -26,6 +28,12 @@ function loadStateFromLocalStorage() {
             if (data.selectedStrategies) {
                 selectedStrategies = new Set(data.selectedStrategies);
             }
+            if (data.outputBoxesContent) {
+                outputBoxesContent = data.outputBoxesContent;
+            }
+            if (data.currentUser) {
+                currentUser = data.currentUser;
+            }
             
             console.log('State loaded from localStorage');
             return Promise.resolve(data);
@@ -38,6 +46,7 @@ function loadStateFromLocalStorage() {
 
 function clearLocalStorage() {
     localStorage.removeItem('appState');
+    outputBoxesContent = {};
     console.log('State cleared from localStorage');
 }
 

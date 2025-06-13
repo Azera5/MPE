@@ -24,7 +24,7 @@ async function initApp() {
 
 
 /** 
-* Create output boxes dynamically
+* Create output boxes dynamically and restore saved content
 *
 * Calculate total number of output boxes
 * Raw outputs: one per output model
@@ -56,12 +56,23 @@ function createOutputBoxes() {
     outputModels.forEach(outputModel => {
         const rawOutputBox = document.createElement('div');
         rawOutputBox.className = 'output-box';
-        rawOutputBox.textContent = `${outputModel} (Raw Output) ready`;
+        
+        // Generate unique key for this box
+        const boxKey = generateBoxKey(outputModel, null, null, true);
+        
+        // Restore saved content or set default text
+        const savedContent = getOutputBoxContent(boxKey);
+        if (savedContent) {
+            rawOutputBox.innerHTML = savedContent;
+        } else {
+            rawOutputBox.textContent = `${outputModel} (Raw Output) ready`;
+        }
         
         // Store raw output info in data attributes
         rawOutputBox.dataset.outputModel = outputModel;
         rawOutputBox.dataset.isRaw = 'true';
         rawOutputBox.dataset.boxIndex = boxIndex;
+        rawOutputBox.dataset.boxKey = boxKey; // Store the key for easy access
         
         outputsContainer.appendChild(rawOutputBox);
         boxIndex++;
@@ -73,13 +84,24 @@ function createOutputBoxes() {
             selectedStrategies.forEach(strategy => {
                 const outputBox = document.createElement('div');
                 outputBox.className = 'output-box';
-                outputBox.textContent = `${outputModel} → ${promptModel} (${strategy}) ready`;
+                
+                // Generate unique key for this box
+                const boxKey = generateBoxKey(outputModel, promptModel, strategy, false);
+                
+                // Restore saved content or set default text
+                const savedContent = getOutputBoxContent(boxKey);
+                if (savedContent) {
+                    outputBox.innerHTML = savedContent;
+                } else {
+                    outputBox.textContent = `${outputModel} → ${promptModel} (${strategy}) ready`;
+                }
                 
                 // Store combination info in data attributes
                 outputBox.dataset.outputModel = outputModel;
                 outputBox.dataset.promptModel = promptModel;
                 outputBox.dataset.strategy = strategy;
                 outputBox.dataset.boxIndex = boxIndex;
+                outputBox.dataset.boxKey = boxKey; // Store the key for easy access
                 
                 outputsContainer.appendChild(outputBox);
                 boxIndex++;
@@ -88,6 +110,50 @@ function createOutputBoxes() {
     });
     
     randomizeOutputPositions();
+}
+
+// Function to save output box content
+function saveOutputBoxContent(boxKey, content) {
+    outputBoxesContent[boxKey] = {
+        content: content,
+        timestamp: Date.now()
+    };
+    debouncedSave();
+}
+
+// Function to get output box content
+function getOutputBoxContent(boxKey) {
+    return outputBoxesContent[boxKey]?.content || null;
+}
+
+// Function to generate unique key for output box
+function generateBoxKey(outputModel, promptModel = null, strategy = null, isRaw = false) {
+    if (isRaw) {
+        return `raw_${outputModel}`;
+    } else {
+        return `meta_${outputModel}_${promptModel}_${strategy}`;
+    }
+}
+
+// Function to clear all output boxes content (useful for reset functionality)
+function clearAllOutputBoxes() {
+    const outputBoxes = document.querySelectorAll('.output-box');
+    outputBoxes.forEach(box => {
+        const boxKey = box.dataset.boxKey;
+        if (boxKey) {
+            delete outputBoxesContent[boxKey];
+            
+            // Reset to default text
+            if (box.dataset.isRaw === 'true') {
+                box.textContent = `${box.dataset.outputModel} (Raw Output) ready`;
+            } else {
+                box.textContent = `${box.dataset.outputModel} → ${box.dataset.promptModel} (${box.dataset.strategy}) ready`;
+            }
+        }
+    });
+    
+    // Save the cleared state
+    debouncedSave();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
