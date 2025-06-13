@@ -48,7 +48,13 @@ async function queryDistribution() {
         // Display loading state
         outputBoxes.forEach(box => {
             box.innerHTML = '<div class="loading-spinner"></div>';
-            box.style.opacity = '0.8';
+            // box.style.opacity = '0.8';
+            
+            const boxKey = box.dataset.boxKey;
+            if (boxKey) {
+                saveOutputBoxContent(boxKey, '<div class="loading-spinner"></div>');
+            }
+            
         });
         
         try {
@@ -152,8 +158,15 @@ async function queryDistribution() {
         } catch (error) {
             console.error('Error processing models:', error);
             outputBoxes.forEach(box => {
-                box.innerHTML = `<p>Error: ${error.message}</p>`;
+                const errorContent = `<p>Error: ${error.message}</p>`;
+                box.innerHTML = errorContent;
                 box.style.opacity = '1';
+                
+                // Save error content to localStorage
+                const boxKey = box.dataset.boxKey;
+                if (boxKey) {
+                    saveOutputBoxContent(boxKey, errorContent);
+                }
             });
         }
     }
@@ -172,10 +185,17 @@ async function queryDistribution() {
 }
 
 function showResults(responses, outputBoxes) {
-    // Update all boxes in a single operation
+    // Update all boxes in a single operation and save to localStorage
     outputBoxes.forEach((box, index) => {
-        box.textContent = responses[index] || 'No response received';
+        const responseContent = responses[index] || 'No response received';
+        box.textContent = responseContent;
         box.style.opacity = '1';
+        
+        // Save content to localStorage
+        const boxKey = box.dataset.boxKey;
+        if (boxKey) {
+            saveOutputBoxContent(boxKey, responseContent);
+        }
     });
 }
 
