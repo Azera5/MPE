@@ -18,6 +18,8 @@ from db_models import Base, User, Model, Strategy, Question, Query, Answer, Feed
 from globals import MODELS, META_PROMPTING_MODELS_ONLY, QA_PAIRS, STRATEGIES
 from pathlib import Path
 
+from bert_score import score as bert_score
+
 # Initialize Flask application
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.urandom(24)  # Secret key for session management
@@ -202,6 +204,8 @@ def insert_answer():
             if not model:
                 continue
 
+            question = session.query(Question).filter_by(id=query.question_id).first()
+            bScore = get_bert_score(answer_data['answer'], question.correct_answer)
             # 3. Create new answer
             new_answer = Answer(
                 answer=answer_data['answer'],
@@ -209,7 +213,10 @@ def insert_answer():
                 query_id=query.id,
                 position=answer_data.get('position', 0),
                 score=answer_data.get('score', 0.0),
-                response_time=answer_data.get('response_time', 0.0)
+                response_time=answer_data.get('response_time', 0.0),
+                precision=bScore["Precision"],
+                recall=bScore["Recall"],
+                f1=bScore["F1"],
             )
 
             session.add(new_answer)
@@ -534,7 +541,7 @@ def start_service():
         cmd = (f'chmod a+x "{script_path}" && '
                f'"{script_path}" "{RUN_TIMESTAMP}" &')
         
-        subprocess.run(cmd, shell=True, check=True)
+        #subprocess.run(cmd, shell=True, check=True)
         
         wait_for_ollama()
         
@@ -604,6 +611,10 @@ def html_table():
                                     join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
 
     return render_template("data.html", column_names=df.columns.values, row_data=list(df.values.tolist()),link_column="User", zip=zip)
+
+def get_bert_score(answer:str, truth_answer:str):
+    (P, R, F), hashname = bert_score([answer], [truth_answer], lang="en", return_hash=True)
+    return {"Precision":P, "Recall":R, "F1":F}
 
 if __name__ == '__main__':
     init_database()
