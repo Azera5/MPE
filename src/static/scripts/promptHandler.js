@@ -190,6 +190,7 @@ async function queryDistribution() {
 function showResults(responses, outputBoxes) {
     // Update all boxes in a single operation and save to localStorage
     outputBoxes.forEach((box, index) => {
+        box.removeAttribute('style');
         const responseContent = responses[index] || 'No response received';
         box.textContent = responseContent;
         box.style.opacity = '1';
@@ -200,6 +201,8 @@ function showResults(responses, outputBoxes) {
             saveOutputBoxContent(boxKey, responseContent);
         }
     });
+
+    initializeUserFeedback();
 }
 
 // Initialize the function when DOM is loaded

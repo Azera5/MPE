@@ -8,7 +8,7 @@
 
 
 .output-box, .dummy-box  {
-    flex: 1 0 300px;
+    flex: 1 1 300px;
     min-height: 300px;
     min-width: 420px;
     border: 1px solid var(--border-color);
@@ -26,6 +26,20 @@
 
 .output-box {
     transition: all 0.3s ease;
+}
+
+
+.output-content {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.output-box.has-feedback {
+    padding-bottom: calc(200px + 15px);
 }
 
 .output-box:hover {
