@@ -67,16 +67,17 @@ async function queryDistribution() {
                 let response;
                 let metaPromptResult;
                 let outputModel = box.dataset.outputModel;
+
+                const promptModel = box.dataset.promptModel;
+                const strategy = box.dataset.strategy;
                 
                 
-                if (box.dataset.isRaw === 'true') { 
+                if (box.dataset.strategy == 'none') { 
                     // Raw output                    
                     response = await sendPromptToModel(prompt, outputModel);
                 } else {
-                    // Meta-prompted output                    
-                    const promptModel = box.dataset.promptModel;
-                    const strategy = box.dataset.strategy;
-                    
+
+                    // Meta-prompted output
                     metaPromptResult = await applyMetaPrompt(prompt, strategy, promptModel);
                     response = await sendPromptToModel(metaPromptResult.metaPrompt, outputModel);
                     
@@ -140,19 +141,21 @@ async function queryDistribution() {
                 console.log('Interaction saved:', result_backendResponse_insert_answer);
             }
 
-            const backendResponse_insert_metaPrompt = await fetch('/insert_metaprompt', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(metaPromptsData)
-            });
+            if (metaPromptsData && metaPromptsData.length > 0) {
+                const backendResponse_insert_metaPrompt = await fetch('/insert_metaprompt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(metaPromptsData)
+                });
 
-            const result_backendResponse_insert_metaPrompt = await backendResponse_insert_metaPrompt.json();
-            if (!backendResponse_insert_metaPrompt.ok) {
-                console.error('Backend error:', result_backendResponse_insert_metaPrompt);
-            } else {
-                console.log('Interaction saved:', result_backendResponse_insert_metaPrompt);
+                const result_backendResponse_insert_metaPrompt = await backendResponse_insert_metaPrompt.json();
+                if (!backendResponse_insert_metaPrompt.ok) {
+                    console.error('Backend error:', result_backendResponse_insert_metaPrompt);
+                } else {
+                    console.log('Interaction saved:', result_backendResponse_insert_metaPrompt);
+                }
             }
             
         } catch (error) {
