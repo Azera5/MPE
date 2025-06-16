@@ -26,8 +26,8 @@ async function initApp() {
 /** 
 * Create output boxes dynamically and restore saved content
 *
-* Calculate total number of output boxes
-* Raw outputs: one per output model
+* Calculate total number of output boxes:
+* Raw outputs: one per output model when strategy 'none' is selected
 * Metaprompt outputs: outputModels * promptModels * strategies
 */
 function createOutputBoxes() {
@@ -53,58 +53,61 @@ function createOutputBoxes() {
     let boxIndex = 0;
     
     // First, create raw output boxes for each output model (without metaprompt)
-    outputModels.forEach(outputModel => {
-        const rawOutputBox = document.createElement('div');
-        rawOutputBox.className = 'output-box';
-        
-        // Generate unique key for this box
-        const boxKey = generateBoxKey(outputModel, null, null, true);
-        
-        // Restore saved content or set default text
-        const savedContent = getOutputBoxContent(boxKey);
-        if (savedContent) {
-            rawOutputBox.innerHTML = savedContent;
-        } else {
-            rawOutputBox.textContent = `${outputModel} (Raw Output) ready`;
-        }
-        
-        // Store raw output info in data attributes
-        rawOutputBox.dataset.outputModel = outputModel;
-        rawOutputBox.dataset.isRaw = 'true';
-        rawOutputBox.dataset.boxIndex = boxIndex;
-        rawOutputBox.dataset.boxKey = boxKey; // Store the key for easy access
-        
-        outputsContainer.appendChild(rawOutputBox);
-        boxIndex++;
-    });
-    
+    if(selectedStrategies.has('none')){
+        outputModels.forEach(outputModel => {
+            const rawOutputBox = document.createElement('div');
+            rawOutputBox.className = 'output-box';
+            
+            // Generate unique key for this box
+            const boxKey = generateBoxKey(outputModel, null, null, true);
+            
+            // Restore saved content or set default text
+            const savedContent = getOutputBoxContent(boxKey);
+            if (savedContent) {
+                rawOutputBox.innerHTML = savedContent;
+            } else {
+                rawOutputBox.textContent = `${outputModel} (Raw Output) ready`;
+            }
+            
+            // Store raw output info in data attributes
+            rawOutputBox.dataset.outputModel = outputModel;
+            rawOutputBox.dataset.strategy = 'none';
+            rawOutputBox.dataset.boxIndex = boxIndex;
+            rawOutputBox.dataset.boxKey = boxKey; // Store the key for easy access
+            
+            outputsContainer.appendChild(rawOutputBox);
+            boxIndex++;
+        });
+    }
     // Then create output boxes for each combination with metaprompt
     outputModels.forEach(outputModel => {
         promptModels.forEach(promptModel => {
             selectedStrategies.forEach(strategy => {
-                const outputBox = document.createElement('div');
-                outputBox.className = 'output-box';
-                
-                // Generate unique key for this box
-                const boxKey = generateBoxKey(outputModel, promptModel, strategy, false);
-                
-                // Restore saved content or set default text
-                const savedContent = getOutputBoxContent(boxKey);
-                if (savedContent) {
-                    outputBox.innerHTML = savedContent;
-                } else {
-                    outputBox.textContent = `${outputModel} → ${promptModel} (${strategy}) ready`;
+                if (strategy !='none'){
+                    const outputBox = document.createElement('div');
+                    outputBox.className = 'output-box';
+                    
+                    // Generate unique key for this box
+                    const boxKey = generateBoxKey(outputModel, promptModel, strategy, false);
+                    
+                    // Restore saved content or set default text
+                    const savedContent = getOutputBoxContent(boxKey);
+                    if (savedContent) {
+                        outputBox.innerHTML = savedContent;
+                    } else {
+                        outputBox.textContent = `${outputModel} → ${promptModel} (${strategy}) ready`;
+                    }
+                    
+                    // Store combination info in data attributes
+                    outputBox.dataset.outputModel = outputModel;
+                    outputBox.dataset.promptModel = promptModel;
+                    outputBox.dataset.strategy = strategy;
+                    outputBox.dataset.boxIndex = boxIndex;
+                    outputBox.dataset.boxKey = boxKey; // Store the key for easy access
+                    
+                    outputsContainer.appendChild(outputBox);
+                    boxIndex++;
                 }
-                
-                // Store combination info in data attributes
-                outputBox.dataset.outputModel = outputModel;
-                outputBox.dataset.promptModel = promptModel;
-                outputBox.dataset.strategy = strategy;
-                outputBox.dataset.boxIndex = boxIndex;
-                outputBox.dataset.boxKey = boxKey; // Store the key for easy access
-                
-                outputsContainer.appendChild(outputBox);
-                boxIndex++;
             });
         });
     });
