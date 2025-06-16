@@ -20,6 +20,9 @@ from pathlib import Path
 
 from bert_score import score as bert_score
 
+
+START_APPTAINER = True
+
 # Initialize Flask application
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.urandom(24)  # Secret key for session management
@@ -541,7 +544,7 @@ def start_service():
         cmd = (f'chmod a+x "{script_path}" && '
                f'"{script_path}" "{RUN_TIMESTAMP}" &')
         
-        #subprocess.run(cmd, shell=True, check=True)
+        subprocess.run(cmd, shell=True, check=True)
         
         wait_for_ollama()
         
@@ -619,7 +622,9 @@ def get_bert_score(answer:str, truth_answer:str):
 if __name__ == '__main__':
     init_database()
     load_qa_pairs_from_db()
-    start_service()
+    
+    if START_APPTAINER:
+        start_service()
 
     # Using a dynamically assigned free port
     app.run(host='127.0.0.1', port=0, debug=False)
