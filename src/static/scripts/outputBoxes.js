@@ -37,6 +37,8 @@ async function initApp() {
 function createOutputBoxes() {
     const outputsContainer = document.getElementById('outputsContainer');
     outputsContainer.innerHTML = ''; // Clear any existing boxes
+
+    boxIndex = 0;
     
     // Count models with output: true
     const outputModels = Object.keys(modelSelections).filter(model => 
@@ -54,21 +56,19 @@ function createOutputBoxes() {
     }
     
     // Create output boxes for each combination
-    let boxIndex = 0;
+    
 
     outputModels.forEach(outputModel => {        
         // First, create raw output boxes for each output model (without metaprompt)
         if(selectedStrategies.has('none')){
-            outputsContainer.appendChild(createOutputBox(outputModel,'none', boxIndex));
-            boxIndex++; 
+            outputsContainer.appendChild(createOutputBox(outputModel,'none'));             
         }
 
         // Then create output boxes for each combination with metaprompt
         promptModels.forEach(promptModel => {
             selectedStrategies.forEach(strategy => {
                 if (strategy !='none'){
-                    outputsContainer.appendChild(createOutputBox(outputModel,strategy, promptModel, boxIndex));
-                    boxIndex++;
+                    outputsContainer.appendChild(createOutputBox(outputModel,strategy, promptModel));
                 }
             });
         });
@@ -146,7 +146,7 @@ function removeAllOutputBoxes() {
 }
 
 // Create a single output Box
-function createOutputBox(outputModel, strategy, promptModel = 'none', boxIndex){
+function createOutputBox(outputModel, strategy, promptModel = 'none'){
     // Create content container
     const outputBox = document.createElement('div');
     outputBox.className = 'output-box';
@@ -177,7 +177,43 @@ function createOutputBox(outputModel, strategy, promptModel = 'none', boxIndex){
     outputBox.dataset.boxIndex = boxIndex;
     outputBox.dataset.boxKey = boxKey; // Store the key for easy access
 
+    // Add click event listener to enable the best answer button when the box is clicked
+    outputBox.addEventListener('click', function() {
+         // Find the Best Answer button inside this box
+        const bestAnswerButton = this.querySelector('.best-answer-button');
+        if (bestAnswerButton && bestAnswerButton.classList.contains('inactive')) {
+            bestAnswerButton.classList.remove('inactive');
+            
+            // Visual feedback to show the box is selected
+            this.style.boxShadow = '0 0 0 2px var(--accent-primary)';
+            
+            // Deactivate all other buttons in other boxes
+            document.querySelectorAll('.output-box').forEach(otherBox => {
+                if (otherBox !== this) {
+                    const otherButton = otherBox.querySelector('.best-answer-button');
+                    if (otherButton) {
+                        otherButton.classList.add('inactive');
+                        otherBox.style.boxShadow = 'none';
+                    }
+                }
+            });
+        }
+    });
+
+    boxIndex++;
     return outputBox;
+}
+
+function createAnnotatedAnswerBox(){
+    const outputsContainer = document.getElementById('outputsContainer');
+    const annotatedBox = document.createElement('div');
+    annotatedBox.className = 'output-box annotated-box';
+    annotatedBox.dataset.boxKey = 'annotated_Answer';
+    annotatedBox.dataset.type = 'annotated';
+
+    outputsContainer.appendChild(annotatedBox);
+    updateDummyBoxes();
+        
 }
 
 document.addEventListener('DOMContentLoaded', function() {

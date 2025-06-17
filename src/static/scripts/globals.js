@@ -9,3 +9,6 @@ let currentUser = localStorage.getItem('currentUser') || 'User';
 
 // Global structure for output boxes content
 let outputBoxesContent = {};
+
+// OutputBox counter
+let boxIndex = 0;
