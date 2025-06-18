@@ -192,8 +192,9 @@ function showResults(responses, outputBoxes) {
     outputBoxes.forEach((box, index) => {
         box.removeAttribute('style');
         const responseContent = responses[index] || 'No response received';
-        box.textContent = responseContent;
+        box.innerHTML = parseMarkdown(responseContent);
         box.style.opacity = '1';
+        box.classList.remove('centered');
         
         // Save content to localStorage
         const boxKey = box.dataset.boxKey;

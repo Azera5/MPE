@@ -84,41 +84,6 @@ def show_logs():
 
     return render_template('logs.html', active_tab='logs', logs=logs, timestamp=RUN_TIMESTAMP)
 
-@app.route('/api/prompt', methods=['POST'])
-def handle_prompt():
-    """
-    API endpoint to handle LLM prompts
-    Accepts JSON with:
-    - prompt: The text prompt to send to the LLM (required)
-    - model: Optional model name (defaults to DEFAULT_MODEL)
-    
-    Returns JSON response with:
-    - prompt: The original prompt
-    - model: The model used
-    - response: The LLM's response
-    - error: Present if there was an error
-    """
-    # Get JSON data from request
-    data = flask_request.get_json()
-
-    if not data or 'prompt' not in data:
-        return jsonify({
-            'error': 'Invalid request. Please provide a "prompt" in the JSON payload.'
-        }), 400
-
-    # Extract prompt and model (if provided)
-    prompt = data['prompt']
-    model = data.get('model', DEFAULT_MODEL)
-
-    # Get response from Ollama
-    response = generate_response(prompt, model)
-
-    return jsonify({
-        'prompt': prompt,
-        'model': model,
-        'response': response
-    })
-
 @app.route('/api/users', methods=['GET', 'POST'])
 def handle_users():
     """Handle both getting user suggestions and creating new users"""
@@ -403,6 +368,69 @@ def find_answer_by_content():
         return jsonify({"error": str(e)}), 500
     finally:
         session.close()
+
+@app.route('/api/get_annotated_answer', methods=['POST'])
+def get_annotated_answer():
+    data = flask_request.get_json()
+    query_id = data.get('query_id')
+    
+    if not query_id:
+        return jsonify({'error': 'query_id is required'}), 400   
+
+    session = Session()
+    try:        
+        query = session.query(Query).filter_by(id=query_id).first()
+        if not query:
+            return jsonify({'error': 'Query not found'}), 404            
+      
+        question = session.query(Question).filter_by(id=query.question_id).first()
+        if not question:
+            return jsonify({'error': 'Question not found'}), 404
+            
+        return jsonify({
+            'annotated_answer': question.correct_answer
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/prompt', methods=['POST'])
+def handle_prompt():
+    """
+    API endpoint to handle LLM prompts
+    Accepts JSON with:
+    - prompt: The text prompt to send to the LLM (required)
+    - model: Optional model name (defaults to DEFAULT_MODEL)
+    
+    Returns JSON response with:
+    - prompt: The original prompt
+    - model: The model used
+    - response: The LLM's response
+    - error: Present if there was an error
+    """
+    # Get JSON data from request
+    data = flask_request.get_json()
+
+    if not data or 'prompt' not in data:
+        return jsonify({
+            'error': 'Invalid request. Please provide a "prompt" in the JSON payload.'
+        }), 400
+
+    # Extract prompt and model (if provided)
+    prompt = data['prompt']
+    model = data.get('model', DEFAULT_MODEL)
+
+    # Get response from Ollama
+    response = generate_response(prompt, model)
+
+    return jsonify({
+        'prompt': prompt,
+        'model': model,
+        'response': response
+    })
 
 def generate_response(prompt, model=None):
     """

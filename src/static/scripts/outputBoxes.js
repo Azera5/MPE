@@ -90,12 +90,16 @@ function showOutputBoxes() {
             ? createOutputBox(outputModel, strategy)
             : createOutputBox(outputModel, strategy, promptModel);
         
+            
+
         // Restore saved content
         if (typeof contentObj === 'object' && contentObj.content) {
-            box.textContent = contentObj.content;
+            box.innerHTML =  parseMarkdown(contentObj.content);
+            box.style.textAlign = 'left';
+            box.classList.remove('centered')
         } else {
             // Fallback for plain text content
-            box.textContent = contentObj;
+            box.innerHTML = contentObj;
         }
         
         // Make sure to set the boxKey for future reference
@@ -150,11 +154,7 @@ function createOutputBox(outputModel, strategy, promptModel = 'none'){
     // Create content container
     const outputBox = document.createElement('div');
     outputBox.className = 'output-box';
-
-    outputBox.style.justifyContent = 'center';
-    outputBox.style.alignItems = 'center';
-    outputBox.style.textAlign = 'center';
-    
+   
     let boxKey;
 
     // Generate unique key for this box
@@ -164,10 +164,12 @@ function createOutputBox(outputModel, strategy, promptModel = 'none'){
     // Restore saved content or set default text
     const savedContent = getOutputBoxContent(boxKey);
     if (savedContent) {
-        outputBox.innerHTML = savedContent;
+        outputBox.innerHTML = parseMarkdown(savedContent);
+        outputBox.style.display('block');
     } else {
+        outputBox.classList.add('centered');
         if (strategy == 'none') outputBox.textContent = `${outputModel} (Raw Output) ready`;
-        else outputBox.textContent = `${outputModel} → ${promptModel} (${strategy}) ready`;
+        else outputBox.textContent = `${outputModel} → ${promptModel} (${strategy}) ready`;        
     }
     
     // Store output info in data attributes
@@ -204,18 +206,66 @@ function createOutputBox(outputModel, strategy, promptModel = 'none'){
     return outputBox;
 }
 
-function createAnnotatedAnswerBox(){
+async function createAnnotatedAnswerBox(query_id){
     const outputsContainer = document.getElementById('outputsContainer');
     const annotatedBox = document.createElement('div');
     annotatedBox.className = 'output-box annotated-box';
-    annotatedBox.dataset.boxKey = 'annotated_Answer';
+    annotatedBox.dataset.boxKey = 'annotated_answer';
     annotatedBox.dataset.type = 'annotated';
 
-    outputsContainer.appendChild(annotatedBox);
-    updateDummyBoxes();
-        
-}
+    try {
+        const response = await fetch('/api/get_annotated_answer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                query_id: query_id
+            })
+        });
 
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        const answerText = data.annotated_answer;
+        
+        annotatedBox.textContent = answerText;
+        saveOutputBoxContent('annotated_answer', answerText)
+        outputsContainer.appendChild(annotatedBox);
+        updateDummyBoxes();
+
+    } catch (error) {
+        console.error('Error fetching annotated answer:', error);
+        annotatedBox.textContent = 'Error loading answer';
+    }
+
+    
+   
+}
 document.addEventListener('DOMContentLoaded', function() {
     initApp();
 });
+
+
+// Converts basic Markdown syntax to HTML (bold, italic, code, line breaks).
+function parseMarkdown(text) {
+    if (typeof text !== 'string') return text;
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')               // **bold** → <b>
+        .replace(/\*(.*?)\*/g, '<i>$1</i>')                   // *italic* → <i>
+        .replace(/`(.*?)`/g, '<code>$1</code>')               // `code` → <code>
+        .replace(/\n/g, '<br>');                              // Only <br> for line breaks
+}
+
+
+// Converts HTML back to original Markdown (reverse of parseMarkdown).
+function htmlToMarkdown(html) {
+    if (typeof html !== 'string') return html;
+    return html
+        .replace(/<b>(.*?)<\/b>/g, '**$1**')     // <b> → **bold**
+        .replace(/<i>(.*?)<\/i>/g, '*$1*')       // <i> → *italic*
+        .replace(/<code>(.*?)<\/code>/g, '`$1`')  // <code> → `code`
+        .replace(/<br\s?\/?>/g, '\n');           // <br> → Newline
+}
