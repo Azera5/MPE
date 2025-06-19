@@ -207,10 +207,28 @@ function createOutputBox(outputModel, strategy, promptModel = 'none'){
 
 async function createAnnotatedAnswerBox(query_id){
     const outputsContainer = document.getElementById('outputsContainer');
+    
+    const annotatedBoxExists = outputsContainer.querySelector('.output-box[data-box-key="annotated_answer"]') !== null;
+    if(annotatedBoxExists) return;
+
     const annotatedBox = document.createElement('div');
     annotatedBox.className = 'output-box annotated-box';
     annotatedBox.dataset.boxKey = 'annotated_answer';
     annotatedBox.dataset.type = 'annotated';
+
+    const submitButton = document.createElement('button');
+    submitButton.className = 'submit-feedback-button';
+    submitButton.textContent = 'Submit Feedback';
+    
+    
+    submitButton.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        await handleFeedbackSubmission();
+        removeAllOutputBoxes();
+        createOutputBoxes();
+    });
+    
+    
 
     try {
         const response = await fetch('/api/get_annotated_answer', {
@@ -229,20 +247,19 @@ async function createAnnotatedAnswerBox(query_id){
 
         const data = await response.json();
         const answerText = data.annotated_answer;
-        
+
         annotatedBox.textContent = answerText;
         saveOutputBoxContent('annotated_answer', answerText)
         outputsContainer.appendChild(annotatedBox);
+        annotatedBox.appendChild(submitButton);
         updateDummyBoxes();
 
     } catch (error) {
         console.error('Error fetching annotated answer:', error);
         annotatedBox.textContent = 'Error loading answer';
-    }
-
-    
-   
+    }   
 }
+
 document.addEventListener('DOMContentLoaded', function() {
     initApp();
 });

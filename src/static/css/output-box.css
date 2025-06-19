@@ -41,10 +41,13 @@
     padding-right: 5px;
 }
 
-.output-box.has-feedback {
+.output-box.has-bestAnswerButton {
     padding-bottom: calc(200px + 15px);
 }
 
+.output-box.has-feedbackSlider {
+    padding-bottom: calc(300px + 15px);
+}
 .output-box:hover {
     border-color: var(--accent-primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -54,8 +57,13 @@
 /* Annotated Answer Box */
 .output-box.annotated-box {
     background-color: rgba(57, 159, 154, 0.08);
+    display: flex;
+    flex-direction: column;
     border: 1px solid var(--accent-primary);
     position: relative;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
     transition: all 0.3s ease;
 }
 

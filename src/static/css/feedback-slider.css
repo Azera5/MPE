@@ -1,0 +1,124 @@
+/* Styles for feedback sliders in output boxes */
+.feedback-sliders-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 600px;
+    padding: 10px;
+    margin-top: 25px;
+}
+
+.slider-group {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    min-height: 30px;
+}
+
+.slider-label {
+    min-width: 100px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--light-text);
+    text-align: left;
+    padding-bottom: 23px;
+    text-transform: capitalize;
+    gap: 2px;
+}
+
+.slider-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.feedback-slider {
+    flex: 1;
+    height: 6px;
+    background: linear-gradient(to right, 
+        var(--error-color) 0%, 
+        var(--warning-color) 25%, 
+        var(--muted-text) 50%, 
+        var(--success-color) 75%, 
+        var(--accent-primary) 100%);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    position: relative;
+}
+
+.slider-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+.submit-feedback-button {
+    padding: 10px 20px;
+    background-color: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-width: 100px;
+}
+
+.submit-feedback-button:hover {
+    background-color: var(--accent-secondary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.submit-feedback-button:disabled {
+    background-color: var(--muted-text);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Scale indicators */
+.slider-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted-text);
+    padding: 0 10px;
+}
+
+.slider-group-with-scale {
+    display: flex;
+    flex-direction: column;
+}
+
+.slider-group-with-scale .slider-container {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.slider-group-with-scale .feedback-slider {
+    margin-bottom: 2px;
+}
+
+/* Animation for smooth transitions */
+.feedback-sliders-container {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
