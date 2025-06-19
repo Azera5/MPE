@@ -8,13 +8,13 @@
 
 
 .output-box, .dummy-box  {
-    flex: 1 0 300px;
+    flex: 1 1 300px;
     min-height: 300px;
     min-width: 420px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 15px;
-    display: flex;
+    display: block;
     justify-content: center;
     align-items: center;
     text-align: left;
@@ -22,16 +22,41 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);    
     white-space: pre-wrap;
     word-break: break-word;
+    transition: all 0.3s ease;  
 }
 
-.output-box {
-    transition: all 0.3s ease;
+.output-box.centered {
+    display: flex;
+    place-items: center;
+    text-align: center;
+}
+
+
+.output-content {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.output-box.has-feedback {
+    padding-bottom: calc(200px + 15px);
 }
 
 .output-box:hover {
     border-color: var(--accent-primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     transform: translateY(-2px);
+}
+
+/* Annotated Answer Box */
+.output-box.annotated-box {
+    background-color: rgba(57, 159, 154, 0.08);
+    border: 1px solid var(--accent-primary);
+    position: relative;
+    transition: all 0.3s ease;
 }
 
 .dummy-box {
@@ -67,3 +92,4 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+

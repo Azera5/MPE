@@ -1,0 +1,54 @@
+/* Styles for the user feedback section in output boxes */
+.output-box {
+    position: relative;
+}
+
+.user-feedback-section {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--darker-bg);
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    transition: all 0.3s ease;
+}
+
+.best-answer-button {
+    padding: 12px 20px;
+    background-color: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
+    min-width: 80px;
+}
+
+.best-answer-button:hover {
+    background-color: var(--accent-secondary);
+    transform: translateY(-1px);
+}
+
+.best-answer-button.inactive {
+    background-color: #cccccc;
+    color: #666666;
+    cursor: not-allowed;
+    transform: none;
+    pointer-events: none;
+    
+    background-image: 
+        linear-gradient(45deg, rgba(255,255,255,0.3) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.3) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.3) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.3) 75%);
+    background-size: 4px 4px;
+    background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+}

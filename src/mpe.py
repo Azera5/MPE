@@ -3,7 +3,7 @@ import os
 import subprocess
 import requests 
 
-from sqlalchemy import create_engine, exists
+from sqlalchemy import create_engine, func, literal
 
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -83,41 +83,6 @@ def show_logs():
             logs[key]['content'] = f"Log file not found: {logs[key]['path']}"
 
     return render_template('logs.html', active_tab='logs', logs=logs, timestamp=RUN_TIMESTAMP)
-
-@app.route('/api/prompt', methods=['POST'])
-def handle_prompt():
-    """
-    API endpoint to handle LLM prompts
-    Accepts JSON with:
-    - prompt: The text prompt to send to the LLM (required)
-    - model: Optional model name (defaults to DEFAULT_MODEL)
-    
-    Returns JSON response with:
-    - prompt: The original prompt
-    - model: The model used
-    - response: The LLM's response
-    - error: Present if there was an error
-    """
-    # Get JSON data from request
-    data = flask_request.get_json()
-
-    if not data or 'prompt' not in data:
-        return jsonify({
-            'error': 'Invalid request. Please provide a "prompt" in the JSON payload.'
-        }), 400
-
-    # Extract prompt and model (if provided)
-    prompt = data['prompt']
-    model = data.get('model', DEFAULT_MODEL)
-
-    # Get response from Ollama
-    response = generate_response(prompt, model)
-
-    return jsonify({
-        'prompt': prompt,
-        'model': model,
-        'response': response
-    })
 
 @app.route('/api/users', methods=['GET', 'POST'])
 def handle_users():
@@ -323,6 +288,149 @@ def insert_metaprompt():
         'errors': errors
     }), 207 if errors else 201
 
+@app.route('/api/insert_bestAnswer', methods=['POST'])
+def insert_bestAnswer():
+    session = Session()
+    try:
+        # Get data from request
+        data = flask_request.get_json()
+        query_id = data.get('query_id')
+        best_answer_id = data.get('best_answer_id')
+
+        # Validate input
+        if not query_id or not best_answer_id:
+            return jsonify({"error": "Both query_id and best_answer_id are required"}), 400
+
+        # Check if answer exists
+        answer = session.query(Answer).filter_by(id=best_answer_id).first()
+        if not answer:
+            return jsonify({"error": "Answer not found"}), 404
+
+        # Check if query exists
+        query = session.query(Query).filter_by(id=query_id).first()
+        if not query:
+            return jsonify({"error": "Query not found"}), 404
+        
+        
+        # Check if best answer already exists for this query
+        if query.best_answer_id is not None and query.best_answer_id != '':
+            return jsonify({
+                "message": "This query already has a best answer, it cannot be changed",
+                "existing_best_answer_id": query.best_answer_id
+            }), 200
+
+        # Verify answer belongs to query
+        if answer.query_id != query_id:
+            return jsonify({"error": "Answer does not belong to this query"}), 400
+
+        # Update the best answer
+        query.best_answer_id = best_answer_id
+        session.commit()
+
+        return jsonify({
+            "message": "Best answer updated successfully",
+            "query_id": query_id,
+            "best_answer_id": best_answer_id
+        }), 200
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+    finally:
+        session.close()
+
+@app.route('/api/find_answer_by_content', methods=['POST'])
+def find_answer_by_content():
+    session = Session()
+    try:
+        data = flask_request.get_json()
+        answer_content = data.get('answer_content')
+        
+        if not answer_content:
+            return jsonify({"error": "answer_content is required"}), 400
+                
+
+        answer = session.query(Answer).filter(
+            Answer.answer == answer_content
+        ).order_by(Answer.id.desc()).first()
+        
+        if answer:
+            return jsonify({
+                "answer_id": answer.id,
+                "query_id": answer.query_id
+            }), 200
+        
+        return jsonify({"error": "Matching answer not found"}), 404
+        
+    except Exception as e:
+        print(f"[ERROR] Exception: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/get_annotated_answer', methods=['POST'])
+def get_annotated_answer():
+    data = flask_request.get_json()
+    query_id = data.get('query_id')
+    
+    if not query_id:
+        return jsonify({'error': 'query_id is required'}), 400   
+
+    session = Session()
+    try:        
+        query = session.query(Query).filter_by(id=query_id).first()
+        if not query:
+            return jsonify({'error': 'Query not found'}), 404            
+      
+        question = session.query(Question).filter_by(id=query.question_id).first()
+        if not question:
+            return jsonify({'error': 'Question not found'}), 404
+            
+        return jsonify({
+            'annotated_answer': question.correct_answer
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/prompt', methods=['POST'])
+def handle_prompt():
+    """
+    API endpoint to handle LLM prompts
+    Accepts JSON with:
+    - prompt: The text prompt to send to the LLM (required)
+    - model: Optional model name (defaults to DEFAULT_MODEL)
+    
+    Returns JSON response with:
+    - prompt: The original prompt
+    - model: The model used
+    - response: The LLM's response
+    - error: Present if there was an error
+    """
+    # Get JSON data from request
+    data = flask_request.get_json()
+
+    if not data or 'prompt' not in data:
+        return jsonify({
+            'error': 'Invalid request. Please provide a "prompt" in the JSON payload.'
+        }), 400
+
+    # Extract prompt and model (if provided)
+    prompt = data['prompt']
+    model = data.get('model', DEFAULT_MODEL)
+
+    # Get response from Ollama
+    response = generate_response(prompt, model)
+
+    return jsonify({
+        'prompt': prompt,
+        'model': model,
+        'response': response
+    })
 
 def generate_response(prompt, model=None):
     """

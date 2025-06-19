@@ -43,7 +43,7 @@ async function queryDistribution() {
         if (!prompt) return;
         
         // Get all output boxes (excluding dummy boxes)
-        const outputBoxes = Array.from(outputsContainer.querySelectorAll('.output-box:not(.dummy-box)'));
+        let outputBoxes = Array.from(outputsContainer.querySelectorAll('.output-box:not(.dummy-box)'));
         
         // Display loading state
         outputBoxes.forEach(box => {
@@ -56,6 +56,9 @@ async function queryDistribution() {
             }
             
         });
+
+        randomizeOutputPositions();
+        outputBoxes = Array.from(outputsContainer.querySelectorAll('.output-box:not(.dummy-box)'));
         
         try {
             // Collect all responses before displaying anything
@@ -63,7 +66,7 @@ async function queryDistribution() {
             const metaPromptsData = [];
             const responses = [];
             
-            for (const box of outputBoxes) {
+            for (const [index, box] of outputBoxes.entries()) {
                 let response;
                 let metaPromptResult;
                 let outputModel = box.dataset.outputModel;
@@ -99,7 +102,7 @@ async function queryDistribution() {
                     question_text: prompt,
                     answer: response,
                     model: outputModel,
-                    position: 0, // Not implemented yet
+                    position: index,
                     score: 0.0 // Not implemented yet
                 });
 
@@ -190,9 +193,11 @@ async function queryDistribution() {
 function showResults(responses, outputBoxes) {
     // Update all boxes in a single operation and save to localStorage
     outputBoxes.forEach((box, index) => {
+        box.removeAttribute('style');
         const responseContent = responses[index] || 'No response received';
-        box.textContent = responseContent;
+        box.innerHTML = parseMarkdown(responseContent);
         box.style.opacity = '1';
+        box.classList.remove('centered');
         
         // Save content to localStorage
         const boxKey = box.dataset.boxKey;
@@ -200,6 +205,8 @@ function showResults(responses, outputBoxes) {
             saveOutputBoxContent(boxKey, responseContent);
         }
     });
+
+    initializeUserFeedback();
 }
 
 // Initialize the function when DOM is loaded
