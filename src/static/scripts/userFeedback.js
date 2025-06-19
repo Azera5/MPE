@@ -1,8 +1,31 @@
 function initializeUserFeedback() {
-    document.querySelectorAll('.output-box').forEach(box => {
+    const outputsContainer = document.getElementById('outputsContainer');    
+    const annotatedBox = outputsContainer.querySelector('.output-box[data-box-key="annotated_answer"]')
+    const annotatedBoxExists = annotatedBox !== null;
+    
+    // Load feedback
+    if(annotatedBoxExists){
+        annotatedBox.className = 'output-box annotated-box';
+                
+        const submitButton = document.createElement('button');
+        submitButton.className = 'submit-feedback-button';
+        submitButton.textContent = 'Submit Feedback';
+                
+        submitButton.addEventListener('click', async function(e) {
+            e.stopPropagation();
+            await handleFeedbackSubmission();
+            removeAllOutputBoxes();
+            createOutputBoxes();
+        });
 
+        annotatedBox.appendChild(submitButton);
+        showFeedbackSliders();
+        return;
+    }
+    document.querySelectorAll('.output-box').forEach(box => {
+    
+    // Create feedback section if it doesn't exist
     if(box.dataset.boxKey !== 'annotated_answer') {
-        // Create feedback section if it doesn't exist
         if (!box.querySelector('.user-feedback-section')) {
             const feedbackSection = document.createElement('div');
             feedbackSection.className = 'user-feedback-section';
@@ -24,8 +47,8 @@ function initializeUserFeedback() {
                         const boxKey = box.dataset.boxKey;
                         await saveBestAnswerToDatabase(boxKey);
                         
-                        // 2. UI Update (will implement fully later)
-                        
+                        // 2. UI Update
+                        showFeedbackSliders();
                         
                         console.log('Best answer processed for box:', boxKey);
                     } catch (error) {
@@ -36,9 +59,9 @@ function initializeUserFeedback() {
             
             feedbackSection.appendChild(bestAnswerbutton);
             box.appendChild(feedbackSection);
-            box.classList.add('has-feedback');
+            box.classList.add('has-bestAnswerButton');
         }
-    } else box.className = 'output-box annotated-box';
+    }   
     });
 }
 
