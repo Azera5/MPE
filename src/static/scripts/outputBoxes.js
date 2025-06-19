@@ -73,8 +73,7 @@ function createOutputBoxes() {
             });
         });
     });
-        
-    randomizeOutputPositions();
+    updateDummyBoxes();
 }
 
 function showOutputBoxes() {
