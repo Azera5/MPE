@@ -8,4 +8,4 @@ META_PROMPTING_MODELS_ONLY = []
 QA_PAIRS = ()
 
 # Dummy-Strategies
-STRATEGIES = ['none', 'chain-of-thought', 'self-reflection']
+STRATEGIES = ['none', 'S-Template', 'A-Template', 'auto-PE', 'Rephrasing', 'L-Reference', 'C-Reference']
