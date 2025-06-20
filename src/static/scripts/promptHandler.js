@@ -102,6 +102,7 @@ async function queryDistribution() {
                     question_text: prompt,
                     answer: response,
                     model: outputModel,
+                    strategy: strategy,
                     position: index,
                     score: 0.0 // Not implemented yet
                 });
@@ -109,8 +110,6 @@ async function queryDistribution() {
             
             }
             
-            showResults(responses, outputBoxes);
-
             const insertQueryData = {
                 user: currentUser,
                 question_text: prompt
@@ -141,6 +140,20 @@ async function queryDistribution() {
             if (!backendResponse_insert_answer.ok) {
                 console.error('Backend error:', result_backendResponse_insert_answer);
             } else {
+                // Stores answer IDs for outputs generated without metaprompting (local storage)
+                result_backendResponse_insert_answer.results.forEach(answerInfo => {
+                    let boxKey;
+                     
+                    if (answerInfo.strategy === 'none') {
+                        boxKey = generateBoxKey(answerInfo.model, null, null, true)
+                    }
+                    if (boxKey) {
+                    saveOutputBoxContent(boxKey, ' ');
+                    
+                    outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
+                    outputBoxesContent[boxKey].query_id = answerInfo.query_id;                    
+                    }
+                });
                 console.log('Interaction saved:', result_backendResponse_insert_answer);
             }
 
@@ -152,15 +165,32 @@ async function queryDistribution() {
                     },
                     body: JSON.stringify(metaPromptsData)
                 });
-
+               
                 const result_backendResponse_insert_metaPrompt = await backendResponse_insert_metaPrompt.json();
                 if (!backendResponse_insert_metaPrompt.ok) {
                     console.error('Backend error:', result_backendResponse_insert_metaPrompt);
                 } else {
+                     // Stores answer IDs for outputs generated with metaprompting (local storage)
+                    result_backendResponse_insert_metaPrompt.results.forEach(answerInfo => {
+                    let boxKey;
+                    
+                    if (answerInfo.strategy !== 'none') {
+                        boxKey = generateBoxKey(answerInfo.outputModel, answerInfo.promptModel, answerInfo.strategy, false);
+                    }                    
+                        if (boxKey) {
+                        saveOutputBoxContent(boxKey, '');                                            
+                        
+                        // Only store answer_id and query_id in the existing structure
+                        outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
+                        outputBoxesContent[boxKey].query_id = answerInfo.query_id;
+                        outputBoxesContent[boxKey].metaPrompt_id = answerInfo.metaPrompt_id;                        
+                    }
+                });
                     console.log('Interaction saved:', result_backendResponse_insert_metaPrompt);
                 }
             }
-            
+
+            showResults(responses, outputBoxes);
         } catch (error) {
             console.error('Error processing models:', error);
             outputBoxes.forEach(box => {

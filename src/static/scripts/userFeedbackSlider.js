@@ -108,6 +108,71 @@ function updateSliderThumbColor(slider, value) {
 }
 
 async function handleFeedbackSubmission() {
-    // TODO
-    return
+    try {
+        // Collect all feedback data from sliders
+        const feedbackData = [];
+        
+        // Find all output boxes with feedback sliders (excluding annotated answer)
+        document.querySelectorAll('.output-box').forEach(box => {
+            if (box.dataset.boxKey === 'annotated_answer') return;
+            
+            const boxKey = box.dataset.boxKey;
+            const answer_id = outputBoxesContent[boxKey]?.answer_id;
+            
+            if (!answer_id) {
+                console.warn(`No answer_id found for box: ${boxKey}`);
+                return;
+            }
+            
+            // Collect slider values for this box
+            const sliders = box.querySelectorAll('.feedback-slider');
+            if (sliders.length === 0) return;
+            
+            const sliderValues = {};
+            sliders.forEach(slider => {
+                const criterion = slider.dataset.criterion;
+                const value = parseFloat(slider.value);
+                sliderValues[criterion] = value;
+            });
+            
+            // Add feedback entry for this answer
+            feedbackData.push({
+                answer_id: answer_id,
+                user: currentUser,
+                accuracy: sliderValues.accuracy || 0,
+                completeness: sliderValues.completeness || 0,
+                relevance: sliderValues.relevance || 0,
+                coherence: sliderValues.coherence || 0,
+                clarity: sliderValues.clarity || 0
+            });
+        });
+        
+        if (feedbackData.length === 0) {
+            console.warn('No feedback data to submit');
+            return;
+        }
+        
+        // Send feedback data to backend
+        const response = await fetch('/api/insert_feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                feedback_entries: feedbackData
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Failed to submit feedback: ${errorData.error || 'Unknown error'}`);
+        }
+        
+        const result = await response.json();
+        console.log('Feedback submitted successfully:', result);
+        
+    } catch (error) {
+        console.error('Error submitting feedback:', error);
+        alert('Failed to submit feedback. Please try again.');
+    }
 }

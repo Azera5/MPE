@@ -66,33 +66,16 @@ function initializeUserFeedback() {
 }
 
 async function saveBestAnswerToDatabase(boxKey) {
-    // Get the output box content
-    const outputBox = document.querySelector(`.output-box[data-box-key="${boxKey}"]`);    
-    const answerContent = getAnswerContentOnly(outputBox);
-
     try {
-        // First find the answer and query IDs using the answer text
-        const findResponse = await fetch('/api/find_answer_by_content', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                answer_content: answerContent
-            })
-        });
-
-        if (!findResponse.ok) {
-            throw new Error('Failed to find answer in database');
-        }
-
-        const { answer_id, query_id } = await findResponse.json();
+        // Gets IDs directly from localStorage
+        const answer_id = outputBoxesContent[boxKey].answer_id;
+        const query_id = outputBoxesContent[boxKey].query_id;
         
         if (!answer_id || !query_id) {
-            throw new Error('Answer or query not found');
+            throw new Error('Answer or query ID not found in box data');
         }
 
-        // Then update the query with the best answer
+        // Update the query with the best answer
         const updateResponse = await fetch('/api/insert_bestAnswer', {
             method: 'POST',
             headers: {
@@ -118,7 +101,7 @@ async function saveBestAnswerToDatabase(boxKey) {
     }
 }
 
-// Removes feedbackSection text text from output content.
+// Removes feedbackSection text from output content.
 function getAnswerContentOnly(outputBox) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = outputBox.innerHTML;

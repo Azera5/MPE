@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, Integer, Float, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship 
 from enum import Enum
 
 Base = declarative_base()
@@ -36,6 +37,8 @@ class Model(Base):
     
     id = Column(Integer, primary_key=True)
     name = Column(String)
+
+    answers = relationship("Answer", back_populates="model_rel")
 
 class Strategy(Base):
     """Strategy table to store different prompting strategies"""
@@ -80,6 +83,8 @@ class Answer(Base):
     precision = Column(Float)
     recall = Column(Float)
     f1 = Column(Float)
+
+    model_rel = relationship("Model")
 
     
 class Feedback(Base):
