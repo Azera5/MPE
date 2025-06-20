@@ -193,7 +193,8 @@ def insert_answer():
             responses.append({
                 'answer_id': new_answer.id,
                 'query_id': query.id,
-                'model_id': model.id
+                'model': model.name,
+                'strategy': data.get('strategy', 'none')
             })
 
         session.commit()
@@ -217,8 +218,9 @@ def insert_metaprompt():
     if not isinstance(data_list, list):
         return jsonify({'error': 'Expected a list of metaprompt entries'}), 400
 
-    results = []
+    # results = []
     errors = []
+    response_data = []
 
     for idx, data in enumerate(data_list):
         try:
@@ -266,9 +268,19 @@ def insert_metaprompt():
                 prompt=data['metaPrompt'],
                 answer_id=answer.id
             )
-
             session.add(new_metaprompt)
-            results.append({'index': idx, 'status': 'created'})
+
+            # Store complete response data
+            response_data.append({
+                'answer_id': answer.id,
+                'query_id': query.id,                
+                'strategy': data['strategy_name'],
+                'promptModel':  data['model'],
+                'outputModel': answer.model_rel.name,
+                'status': 'created',
+                'metaPrompt_id': new_metaprompt.id,
+                'index': idx
+            })
 
         except Exception as e:
             session.rollback()
@@ -284,10 +296,9 @@ def insert_metaprompt():
 
     return jsonify({
         'message': 'Metaprompt insert completed',
-        'created': results,
+        'results': response_data,
         'errors': errors
     }), 207 if errors else 201
-
 @app.route('/api/insert_bestAnswer', methods=['POST'])
 def insert_bestAnswer():
     session = Session()

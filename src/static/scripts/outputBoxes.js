@@ -112,10 +112,17 @@ function showOutputBoxes() {
 
 // Function to save output box content
 function saveOutputBoxContent(boxKey, content) {
-    outputBoxesContent[boxKey] = {
-        content: content,
-        timestamp: Date.now()
-    };
+    // If the output box already exists, update its content and timestamp
+    if(outputBoxesContent[boxKey]){
+        outputBoxesContent[boxKey].content = content; 
+        outputBoxesContent[boxKey].timestamp = Date.now()
+    // Otherwise create a new output box entry
+    }else{
+        outputBoxesContent[boxKey] = {
+            content: content,
+            timestamp: Date.now()
+        };
+    }
     debouncedSave();
 }
 
