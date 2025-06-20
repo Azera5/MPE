@@ -151,12 +151,7 @@ async function queryDistribution() {
                     saveOutputBoxContent(boxKey, ' ');
                     
                     outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
-                    outputBoxesContent[boxKey].query_id = answerInfo.query_id;
-
-                    answer_id = outputBoxesContent[boxKey].answer_id;
-                    query_id = outputBoxesContent[boxKey].query_id;
-
-                    console.log(`insert_Answer: answer_id: ${answer_id};  query_id: ${query_id}`);
+                    outputBoxesContent[boxKey].query_id = answerInfo.query_id;                    
                     }
                 });
                 console.log('Interaction saved:', result_backendResponse_insert_answer);
@@ -181,25 +176,14 @@ async function queryDistribution() {
                     
                     if (answerInfo.strategy !== 'none') {
                         boxKey = generateBoxKey(answerInfo.outputModel, answerInfo.promptModel, answerInfo.strategy, false);
-                    }
-                    // Debug output
-                        // console.log(`Processing answer - BoxKey: ${boxKey}`);
-                    
+                    }                    
                         if (boxKey) {
-                        saveOutputBoxContent(boxKey, '');
-                                            
-                        // console.log(`Answer ID: ${answerInfo.answer_id}, Query ID: ${answerInfo.query_id}, MetaPrompt ID: ${answerInfo.metaPrompt_id}`);
-
+                        saveOutputBoxContent(boxKey, '');                                            
+                        
                         // Only store answer_id and query_id in the existing structure
                         outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
                         outputBoxesContent[boxKey].query_id = answerInfo.query_id;
-                        outputBoxesContent[boxKey].metaPrompt_id = answerInfo.metaPrompt_id;
-                            
-                        answer_id = outputBoxesContent[boxKey].answer_id;
-                        query_id = outputBoxesContent[boxKey].query_id;
-
-                        console.log(`Answer_id: ${answer_id};  Query_id: ${query_id}`);
-                        
+                        outputBoxesContent[boxKey].metaPrompt_id = answerInfo.metaPrompt_id;                        
                     }
                 });
                     console.log('Interaction saved:', result_backendResponse_insert_metaPrompt);

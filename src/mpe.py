@@ -150,7 +150,7 @@ def insert_answer():
 
     try:
         for answer_data in data['answers']:
-            required_fields = ['question_text', 'answer', 'model', 'user']
+            required_fields = ['question_text', 'answer', 'model', 'user', 'strategy']
             if not all(field in answer_data for field in required_fields):
                 return jsonify({'error': f'Missing fields in one of the answers: {answer_data}'}), 400
 
@@ -194,7 +194,7 @@ def insert_answer():
                 'answer_id': new_answer.id,
                 'query_id': query.id,
                 'model': model.name,
-                'strategy': data.get('strategy', 'none')
+                'strategy': answer_data['strategy']
             })
 
         session.commit()
@@ -299,6 +299,7 @@ def insert_metaprompt():
         'results': response_data,
         'errors': errors
     }), 207 if errors else 201
+
 @app.route('/api/insert_bestAnswer', methods=['POST'])
 def insert_bestAnswer():
     session = Session()
@@ -351,35 +352,6 @@ def insert_bestAnswer():
     finally:
         session.close()
 
-@app.route('/api/find_answer_by_content', methods=['POST'])
-def find_answer_by_content():
-    session = Session()
-    try:
-        data = flask_request.get_json()
-        answer_content = data.get('answer_content')
-        
-        if not answer_content:
-            return jsonify({"error": "answer_content is required"}), 400
-                
-
-        answer = session.query(Answer).filter(
-            Answer.answer == answer_content
-        ).order_by(Answer.id.desc()).first()
-        
-        if answer:
-            return jsonify({
-                "answer_id": answer.id,
-                "query_id": answer.query_id
-            }), 200
-        
-        return jsonify({"error": "Matching answer not found"}), 404
-        
-    except Exception as e:
-        print(f"[ERROR] Exception: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        session.close()
-
 @app.route('/api/get_annotated_answer', methods=['POST'])
 def get_annotated_answer():
     data = flask_request.get_json()
@@ -407,6 +379,92 @@ def get_annotated_answer():
     finally:
         session.close()
 
+@app.route('/api/insert_feedback', methods=['POST'])
+def insert_feedback():
+    """Create multiple feedback entries from provided list"""
+    data = flask_request.json
+    session = Session()
+
+    if not data or 'feedback_entries' not in data:
+        return jsonify({'error': 'Missing "feedback_entries" list'}), 400
+
+    feedback_entries = data['feedback_entries']
+    if not isinstance(feedback_entries, list):
+        return jsonify({'error': 'Expected a list of feedback entries'}), 400
+
+    responses = []
+    errors = []
+
+    try:
+        for idx, entry in enumerate(feedback_entries):
+            try:
+                # Check required fields
+                required_fields = ['answer_id', 'user', 'accuracy', 'completeness', 'relevance', 'coherence', 'clarity']
+                if not all(field in entry for field in required_fields):
+                    errors.append({'index': idx, 'error': 'Missing required fields'})
+                    continue
+
+                # Verify user exists
+                user = session.query(User).filter_by(user=entry['user']).first()
+                if not user:
+                    errors.append({'index': idx, 'error': 'User not found'})
+                    continue
+
+                # Verify answer exists
+                answer = session.query(Answer).filter_by(id=entry['answer_id']).first()
+                if not answer:
+                    errors.append({'index': idx, 'error': 'Answer not found'})
+                    continue
+
+                existing_feedback = answer.feedback_id
+                
+                if existing_feedback:
+                    errors.append({'index': idx, 'error': 'Feedback already exists for this answer'})
+                    continue
+
+                # Create new feedback entry
+                new_feedback = Feedback(
+                    user=entry['user'],
+                    accuracy=float(entry['accuracy']),
+                    completeness=float(entry['completeness']),
+                    relevance=float(entry['relevance']),
+                    coherence=float(entry['coherence']),
+                    clarity=float(entry['clarity'])
+                )
+
+                session.add(new_feedback)
+                session.flush()  # To get ID before commit
+
+                # Update answer to link to feedback
+                answer.feedback_id = new_feedback.id
+
+                responses.append({
+                    'feedback_id': new_feedback.id,
+                    'answer_id': entry['answer_id'],
+                    'user': entry['user'],
+                    'status': 'created',
+                    'index': idx
+                })
+
+            except ValueError as e:
+                errors.append({'index': idx, 'error': f'Invalid numeric value: {str(e)}'})
+            except Exception as e:
+                errors.append({'index': idx, 'error': str(e)})
+
+        # Commit all changes if no critical errors
+        session.commit()
+
+        return jsonify({
+            'message': 'Feedback submission completed',
+            'results': responses,
+            'errors': errors
+        }), 207 if errors else 201
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': 'Failed to submit feedback', 'details': str(e)}), 500
+    finally:
+        session.close()
 
 @app.route('/api/prompt', methods=['POST'])
 def handle_prompt():
