@@ -24,11 +24,39 @@ async function applyMetaPrompt(prompt, strategy, model) {
     // For now, just return the original prompt
     // This will be expanded later to actually apply meta-prompting strategies
     console.log('applyMetaPrompt called with:', { prompt, strategy, model });
-    return {
-            metaPrompt: prompt,
-            strategyId: parseInt(strategy), // Strategy ID for backend
-            modelId: parseInt(model) // Model ID for backend
-        };
+
+    const generalSystemPrompt = `
+    You are a specialized prompt engineer with extensive expertise in effective communication. Your task is to revise input prompts to ensure they:
+        1. Activate deeper cognitive processes.
+        2. Uncover potential reasoning errors.
+        3. Clearly interpret and understand the presented question.
+    Work methodically and always preserve the prompt's structure as a question under any circumstances.
+    `;
+
+    // 'Templates', 'auto-PE', 'Rephrasing', 'L-Reference', 'C-Reference'
+    switch (box.dataset.strategy) {
+        case 'S-Template':
+            return sendPromptToModel((await useBasicTemplate(prompt)).metaPrompt, model);
+        case 'A-Template':
+            return sendPromptToModel((await adaptBasicTemplate(prompt)).metaPrompt, model);
+        case 'auto-PE':
+            return sendPromptToModel((await useAutoPE(prompt)).metaPrompt, model);
+        case 'Rephrasing':
+            return sendPromptToModel((await useRephrasing(prompt)).metaPrompt, model);
+        case 'L-Reference':
+            return prompt; // todo
+        case 'C-Reference':
+            return prompt; // todo
+        default:
+            return prompt; // todo
+    }
+
+        // return {
+        //     metaPrompt: prompt,
+        //     strategyId: parseInt(strategy), // Strategy ID for backend
+        //     modelId: parseInt(model) // Model ID for backend
+        // };
+    // metaPromptResult.metaPrompt
 }
 
 // Function to handle user input
@@ -82,7 +110,7 @@ async function queryDistribution() {
 
                     // Meta-prompted output
                     metaPromptResult = await applyMetaPrompt(prompt, strategy, promptModel);
-                    response = await sendPromptToModel(metaPromptResult.metaPrompt, outputModel);
+                    response = await sendPromptToModel(metaPromptResult, outputModel);
                     
                     // Save data for metaprompt
                     metaPromptsData.push({
