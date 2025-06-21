@@ -59,6 +59,13 @@ class Question(Base):
     correct_answer = Column(Text)
     source = Column(Text)
 
+class QuestionCounter(Base):
+    """Counts of how often each user repeats specific questions."""
+    __tablename__ = 'question_counters'
+    
+    user = Column(String, ForeignKey('users.user'), primary_key=True)
+    question_id = Column(Integer, ForeignKey('questions.id'), primary_key=True,)
+    count = Column(Integer, default=0)
 
 class Query(Base):
     """Query table to link users with questions and best answers"""

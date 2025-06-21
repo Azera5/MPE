@@ -218,7 +218,8 @@ async function queryDistribution() {
                     console.log('Interaction saved:', result_backendResponse_insert_metaPrompt);
                 }
             }
-
+            incrementUserQuestionCount(prompt);
+            populateDropdown();
             showResults(responses, outputBoxes);
         } catch (error) {
             console.error('Error processing models:', error);

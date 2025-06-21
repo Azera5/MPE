@@ -7,5 +7,7 @@ META_PROMPTING_MODELS_ONLY = []
 
 QA_PAIRS = ()
 
+QUESTION_COUNTERS = {}
+
 # Dummy-Strategies
 STRATEGIES = ['none', 'S-Template', 'A-Template', 'auto-PE', 'Rephrasing', 'L-Reference', 'C-Reference']

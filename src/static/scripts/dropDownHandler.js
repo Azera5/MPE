@@ -1,8 +1,49 @@
+let dropdownOptions;
+let userInput;
+let qaPairs;
+
+function populateDropdown() {
+    if (!dropdownOptions) {
+        console.error('dropdownOptions element not found');
+        return;
+    }
+    
+    dropdownOptions.innerHTML = '';
+    
+    qaPairs.forEach(pair => {
+        const optionItem = document.createElement('div');
+        optionItem.className = 'option-item draggable qa-dropdown-item'; // CSS-Klasse hinzugefügt
+        console.log('populateDropdown')
+        const question_counter = getUserQuestionCount(pair[0]) || 0;    
+
+        optionItem.innerHTML = `
+            <div class="qa-counter-field">
+                <span class="counter-display">${question_counter}</span>
+            </div>
+            <span class="qa-dropdown-text">${pair[0]}</span>
+        `;
+        
+        optionItem.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', pair[0]);
+        });
+        
+        optionItem.addEventListener('click', (e) => {            
+            if (!e.target.closest('.qa-counter-field')) {
+                if (userInput) {
+                    userInput.value = pair[0];
+                    dropdownOptions.classList.remove('show');
+                }
+            }
+        });
+        
+        dropdownOptions.appendChild(optionItem);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    const userInput = document.getElementById('userInput');
+    userInput = document.getElementById('userInput');
     const sendButton = document.getElementById('sendButton');
-    const dropdownOptions = document.getElementById('dropdownOptions');
-    const strategyDropdown = document.getElementById('strategyDropdown');
+    dropdownOptions = document.getElementById('dropdownOptions');
     const strategyOptions = document.getElementById('strategyOptions');
     const modelDropdown = document.getElementById('modelDropdown');
     const modelOptions = document.getElementById('modelOptions');
@@ -13,9 +54,10 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/config')
             .then(response => response.json())
             .then(data => {
-                const qaPairs = data.qa_pairs || [];
+                qaPairs = data.qa_pairs || [];
                 const models = data.models || [];
                 const strategies = data.strategies || [];
+                questionCounters = data.question_counters || {};                
                 
                 populateDropdown(qaPairs);
                 populateStrategyDropdown(strategies);
@@ -51,28 +93,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const promptCheckbox = document.querySelector(`input[data-model="${model}"][data-type="prompt"]`);
                 if (promptCheckbox) promptCheckbox.checked = true;
             }
-        });
-    }
-    
-    function populateDropdown(qaPairs) {
-        dropdownOptions.innerHTML = '';
-        
-        qaPairs.forEach(pair => {
-            const optionItem = document.createElement('div');
-            optionItem.className = 'option-item draggable';
-            optionItem.textContent = pair[0];
-            optionItem.draggable = true;
-            
-            optionItem.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', pair[0]);
-            });
-            
-            optionItem.addEventListener('click', () => {
-                userInput.value = pair[0];
-                dropdownOptions.classList.remove('show');
-            });
-            
-            dropdownOptions.appendChild(optionItem);
         });
     }
     

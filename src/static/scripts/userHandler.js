@@ -54,6 +54,7 @@ async function saveUser() {
                 currentUser = newUser;
                 localStorage.setItem('currentUser', currentUser);
                 updateUserButton(currentUser);
+                populateDropdown();
                 closeUserPopup();
                 return true;
             } else {

@@ -232,3 +232,43 @@
     width: 100%;
     padding-top: 20px;
 }
+
+/* Dropdown Item Layout */
+.option-item.qa-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 10px; /* Abstand zwischen Counter und Text */
+}
+
+/* Counter Field - Links positioniert */
+.qa-counter-field {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    min-width: 30px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* Verhindert Schrumpfen */
+}
+
+/* Counter Number Display */
+.counter-display {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--text-color);
+    text-align: center;
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+}
+
+/* Question Text - Nimmt restlichen Platz ein */
+.qa-dropdown-text {
+    flex: 1;
+    font-size: 14px;
+}

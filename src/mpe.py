@@ -13,9 +13,9 @@ import pandas as pd
 import numpy as np
 
 from dataset import filter_truthfulqa_data
-from db_models import Base, User, Model, Strategy, Question, Query, Answer, Feedback, Metaprompt
+from db_models import Base, User, Model, Strategy, Question, QuestionCounter, Query, Answer, Feedback, Metaprompt
 
-from globals import MODELS, META_PROMPTING_MODELS_ONLY, QA_PAIRS, STRATEGIES
+from globals import MODELS, META_PROMPTING_MODELS_ONLY, QA_PAIRS, QUESTION_COUNTERS, STRATEGIES
 from pathlib import Path
 
 from bert_score import score as bert_score
@@ -62,6 +62,7 @@ def get_config():
         'models': MODELS,
         'meta_models': META_PROMPTING_MODELS_ONLY,
         'qa_pairs': QA_PAIRS,
+        'question_counters': QUESTION_COUNTERS,
         'strategies': STRATEGIES
     })
 
@@ -119,7 +120,40 @@ def insert_query():
         )
 
         session.add(new_query)
+        
+        # Update or create QuestionCounter entry
+        question_counter = session.query(QuestionCounter).filter_by(
+            user=query_data['user'],
+            question_id=question.id
+        ).first()
+        
+        if question_counter:
+            question_counter.count += 1
+        else:
+            question_counter = QuestionCounter(
+                user=query_data['user'],
+                question_id=question.id,
+                count=1
+            )
+            session.add(question_counter)      
+
         session.commit()
+
+        # Update global QUESTION_COUNTERS variable
+        if question.question not in QUESTION_COUNTERS:
+            QUESTION_COUNTERS[question.question] = []
+        
+        # Find or create user entry for this question
+        user_entry = next((entry for entry in QUESTION_COUNTERS[question.question] 
+                         if entry["user"] == query_data['user']), None)
+        
+        if user_entry:
+            user_entry["count"] += 1
+        else:
+            QUESTION_COUNTERS[question.question].append({
+                "user": query_data['user'],
+                "count": 1
+            })
 
         return jsonify({
             'message': 'Query created successfully',
@@ -636,19 +670,39 @@ def load_qa_pairs_from_db():
     Load all questions and their correct answers from the database
     into the global QA_PAIRS variable.
     """
-    global QA_PAIRS
+    global QA_PAIRS, QUESTION_COUNTERS
     session = None
     
     try:
         session = Session()
         
-        # Query all questions and convert to plain tuples immediately
-        questions = session.query(Question.question, Question.correct_answer).all()
-        
-        # Convert SQLAlchemy Row objects to plain Python tuples
+        # 1. Load QA pairs
+        questions = session.query(Question.question, Question.correct_answer).all()  
         QA_PAIRS = tuple((str(q.question), str(q.correct_answer)) for q in questions)
         
-        print(f"Loaded {len(QA_PAIRS)} QA pairs into global variable")
+        # 2. Load question counters
+        question_data = session.query(
+            Question.question,
+            QuestionCounter.user,
+            QuestionCounter.count
+        ).outerjoin(
+            QuestionCounter, Question.id == QuestionCounter.question_id
+        ).all()
+        
+        for question_text, user, count in question_data:
+            if not question_text:
+                continue
+                
+            if question_text not in QUESTION_COUNTERS:
+                QUESTION_COUNTERS[question_text] = []
+            
+            if user and count is not None:  # Only add if counter exists
+                QUESTION_COUNTERS[question_text].append({
+                    "user": user,
+                    "count": count
+                })
+        
+        print(f"Loaded {len(QA_PAIRS)} QA pairs and counters for {len(QUESTION_COUNTERS)} questions")
         return True
         
     except Exception as e:
