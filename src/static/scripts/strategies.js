@@ -2,7 +2,7 @@
 
 
 // based on https://arxiv.org/pdf/2311.11482
-async function returnBasicTemplate(prompt) {
+function returnBasicTemplate(prompt) {
     return `
         Task: Prompt Revision to Enhance Reasoning Capabilities.
             1. Original Question: Let's think step by step. ${prompt}
@@ -18,7 +18,7 @@ async function returnBasicTemplate(prompt) {
 }
 
 // based on https://arxiv.org/pdf/2311.11482
-async function returnBasicSystemPrompt() {
+function returnBasicSystemPrompt() {
     return `
         You are a specialized prompt engineer with extensive expertise in effective communication. Your task is to revise input prompts to ensure they:
             1. Activate deeper cognitive processes.
@@ -28,14 +28,14 @@ async function returnBasicSystemPrompt() {
         `;
 }
 
-async function useBasicTemplate(prompt) {
+function useBasicTemplate(prompt) {
     return {
         metaPrompt: returnBasicTemplate(prompt),
         systemPrompt: returnBasicSystemPrompt()
     };
 }
 
-async function adaptBasicTemplate(prompt) {
+function adaptBasicTemplate(prompt) {
     return {
         metaPrompt: returnBasicTemplate(prompt),
         systemPrompt: `
@@ -49,7 +49,7 @@ async function adaptBasicTemplate(prompt) {
 }
 
 // based on https://cobusgreyling.medium.com/meta-prompting-a-practical-guide-to-optimising-prompts-automatically-c0a071f4b664
-async function useAutoPE(prompt) {
+function useAutoPE(prompt) {
     return {
         metaPrompt: `
         Improve the following question to generate a more reliable answer. 
@@ -63,7 +63,7 @@ async function useAutoPE(prompt) {
     };
 }
 
-async function useRephrasing(prompt) {
+function useRephrasing(prompt) {
     return {
         metaPrompt: `
         Original question: ${prompt}
@@ -80,7 +80,7 @@ async function useRephrasing(prompt) {
 }
 
 // example from "Einführung in die Wissensrepräsentation" by Prof. Dr. Fabian Neuhaus
-async function useLReference(prompt) {
+function useLReference(prompt) {
     return {
         metaPrompt: `
         # Example question: What films were directed by David Lynch or George Lucas?
@@ -114,7 +114,7 @@ async function useLReference(prompt) {
     };
 }
 
-async function useCReference(prompt) {
+function useCReference(prompt) {
     
 }
 
