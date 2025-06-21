@@ -38,11 +38,11 @@ async function applyMetaPrompt(prompt, strategy, model) {
         case 'S-Template':
         return await sendPromptToModel(useBasicTemplate(prompt).metaPrompt.trim() ,model, useBasicTemplate(prompt).systemPrompt.trim());
         case 'A-Template':
-            return sendPromptToModel(adaptBasicTemplate(prompt).metaPrompt.trim(), model);
+            return await sendPromptToModel(adaptBasicTemplate(prompt).metaPrompt.trim(), model);
         case 'auto-PE':
-            return sendPromptToModel(useAutoPE(prompt).metaPrompt.trim(), model);
+            return await sendPromptToModel(useAutoPE(prompt).metaPrompt.trim(), model);
         case 'Rephrasing':
-            return sendPromptToModel(seRephrasing(prompt).metaPrompt.trim(), model);
+            return await sendPromptToModel(seRephrasing(prompt).metaPrompt.trim(), model);
         case 'L-Reference':
             return prompt; // todo
         case 'C-Reference':
