@@ -1,6 +1,7 @@
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, Text, Enum as SQLEnum
+from sqlalchemy import DateTime, Column, String, Integer, Float, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship 
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from enum import Enum
 
 Base = declarative_base()
@@ -67,6 +68,7 @@ class Query(Base):
     id = Column(Integer, primary_key=True)
     question_id = Column(Integer, ForeignKey('questions.id'))
     best_answer_id = Column(Integer, ForeignKey('answers.id'))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
 class Answer(Base):
     """Answer table to store generated answers with metadata"""
