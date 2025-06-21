@@ -239,12 +239,20 @@ async function queryDistribution() {
     // Handle Enter key in input field
     userInput.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter') {
+            if (currentUser === 'User') {
+            openUserPopup();
+            return;
+        }
             await processPrompt();
         }
     });
     
     // Handle Send button click
     sendButton.addEventListener('click', async () => {
+        if (currentUser === 'User') {
+            openUserPopup();
+            // return;
+        }
         await processPrompt();
     });
 }
