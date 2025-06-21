@@ -491,17 +491,18 @@ def handle_prompt():
     # Extract prompt and model (if provided)
     prompt = data['prompt']
     model = data.get('model', DEFAULT_MODEL)
-
+    system_prompt = data['systemPrompt']
     # Get response from Ollama
-    response = generate_response(prompt, model)
+    response = generate_response(prompt, model, system_prompt)
 
     return jsonify({
         'prompt': prompt,
         'model': model,
+        'systemPrompt': system_prompt,
         'response': response
     })
 
-def generate_response(prompt, model=None):
+def generate_response(prompt, model=None, system_prompt=''):
     """
     Send a prompt to the LLM and get the response.
     :param prompt: The input prompt/text to send to the model
@@ -516,6 +517,10 @@ def generate_response(prompt, model=None):
         "prompt": prompt,
         "stream": False
     }
+
+    # Add system prompt if provided and not empty
+    if system_prompt and system_prompt.strip():
+        payload["system"] = system_prompt.strip()
 
     try:
         response = requests.post(endpoint, json=payload)

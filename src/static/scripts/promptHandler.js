@@ -1,12 +1,12 @@
 // Function to handle sending prompt to backend for a specific model
-async function sendPromptToModel(prompt, model) {
+async function sendPromptToModel(prompt, model, systemPrompt = '') {
     try {
         const response = await fetch('/api/prompt', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ prompt: prompt, model: model })
+            body: JSON.stringify({ prompt: prompt, model: model, systemPrompt: systemPrompt})
         });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -23,7 +23,7 @@ async function sendPromptToModel(prompt, model) {
 async function applyMetaPrompt(prompt, strategy, model) {
     // For now, just return the original prompt
     // This will be expanded later to actually apply meta-prompting strategies
-    console.log('applyMetaPrompt called with:', { prompt, strategy, model });
+    console.log(`queryDistribution called with: ${prompt}, ${strategy}, ${model} }`);
 
     const generalSystemPrompt = `
     You are a specialized prompt engineer with extensive expertise in effective communication. Your task is to revise input prompts to ensure they:
@@ -34,15 +34,15 @@ async function applyMetaPrompt(prompt, strategy, model) {
     `;
 
     // 'Templates', 'auto-PE', 'Rephrasing', 'L-Reference', 'C-Reference'
-    switch (box.dataset.strategy) {
+    switch (strategy) {
         case 'S-Template':
-            return sendPromptToModel((await useBasicTemplate(prompt)).metaPrompt, model);
+        return await sendPromptToModel(useBasicTemplate(prompt).metaPrompt.trim() ,model, useBasicTemplate(prompt).systemPrompt.trim());
         case 'A-Template':
-            return sendPromptToModel((await adaptBasicTemplate(prompt)).metaPrompt, model);
+            return sendPromptToModel(adaptBasicTemplate(prompt).metaPrompt.trim(), model);
         case 'auto-PE':
-            return sendPromptToModel((await useAutoPE(prompt)).metaPrompt, model);
+            return sendPromptToModel(useAutoPE(prompt).metaPrompt.trim(), model);
         case 'Rephrasing':
-            return sendPromptToModel((await useRephrasing(prompt)).metaPrompt, model);
+            return sendPromptToModel(seRephrasing(prompt).metaPrompt.trim(), model);
         case 'L-Reference':
             return prompt; // todo
         case 'C-Reference':
@@ -109,6 +109,7 @@ async function queryDistribution() {
                 } else {
 
                     // Meta-prompted output
+                   
                     metaPromptResult = await applyMetaPrompt(prompt, strategy, promptModel);
                     response = await sendPromptToModel(metaPromptResult, outputModel);
                     
@@ -117,7 +118,7 @@ async function queryDistribution() {
                         user: currentUser,
                         question_text: prompt,
                         strategy_name: strategy,
-                        metaPrompt: metaPromptResult.metaPrompt,
+                        metaPrompt: metaPromptResult,
                         model: promptModel,
                         answer_text: response
                     });
