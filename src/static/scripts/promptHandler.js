@@ -21,42 +21,54 @@ async function sendPromptToModel(prompt, model, systemPrompt = '') {
 
 // Dummy function for meta-prompting (to be expanded later)
 async function applyMetaPrompt(prompt, strategy, model) {
-    // For now, just return the original prompt
-    // This will be expanded later to actually apply meta-prompting strategies
-    console.log(`queryDistribution called with: ${prompt}, ${strategy}, ${model} }`);
+    //console.log(`called with: ${prompt}, ${strategy}, ${model} }`);
 
-    const generalSystemPrompt = `
-    You are a specialized prompt engineer with extensive expertise in effective communication. Your task is to revise input prompts to ensure they:
-        1. Activate deeper cognitive processes.
-        2. Uncover potential reasoning errors.
-        3. Clearly interpret and understand the presented question.
-    Work methodically and always preserve the prompt's structure as a question under any circumstances.
-    `;
+    let metaPromptArgs;
 
-    // 'Templates', 'auto-PE', 'Rephrasing', 'L-Reference', 'C-Reference'
     switch (strategy) {
         case 'S-Template':
-        return await sendPromptToModel(useBasicTemplate(prompt).metaPrompt.trim() ,model, useBasicTemplate(prompt).systemPrompt.trim());
+            console.log(`@applyMetaPrompt : S-Template`);
+            metaPromptArgs = useBasicTemplate(prompt);
+            break;
         case 'A-Template':
-            return await sendPromptToModel(adaptBasicTemplate(prompt).metaPrompt.trim(), model);
+            console.log(`@applyMetaPrompt : A-Template`);
+            metaPromptArgs = adaptBasicTemplate(prompt);
+            break;
         case 'auto-PE':
-            return await sendPromptToModel(useAutoPE(prompt).metaPrompt.trim(), model);
+            console.log(`@applyMetaPrompt : auto-PE`);
+            metaPromptArgs = useAutoPE(prompt);
+            break;
         case 'Rephrasing':
-            return await sendPromptToModel(seRephrasing(prompt).metaPrompt.trim(), model);
-        case 'L-Reference':
-            return prompt; // todo
-        case 'C-Reference':
-            return prompt; // todo
-        default:
-            return prompt; // todo
+            console.log(`@applyMetaPrompt : Rephrasing`);
+            metaPromptArgs = useRephrasing(prompt);
+            break;
     }
 
-        // return {
-        //     metaPrompt: prompt,
-        //     strategyId: parseInt(strategy), // Strategy ID for backend
-        //     modelId: parseInt(model) // Model ID for backend
-        // };
-    // metaPromptResult.metaPrompt
+    // non-reference strategy return
+    return await sendPromptToModel(metaPromptArgs.metaPrompt.trim(), model, metaPromptArgs.systemPrompt.trim());
+}
+
+
+// non-functional atm (CORS error)
+async function queryDBpedia(queryInSPARQL) {
+    console.log(`queryDBpedia called with: ${queryInSPARQL}}`);
+    const endpointUrl = 'https://dbpedia.org/sparql';
+    const queryUrl = `${endpointUrl}?query=${encodeURIComponent(queryInSPARQL)}&format=json`;
+
+    try {
+        const response = await fetch(queryUrl, {
+            headers: {
+                'Accept': 'application/sparql-results+json'
+            }
+        });
+        const data = await response.json();
+        console.log(data.results.bindings);
+
+        return data;
+
+    } catch (error) {
+        console.error('query error:', error);
+    }
 }
 
 // Function to handle user input
@@ -96,8 +108,10 @@ async function queryDistribution() {
             
             for (const [index, box] of outputBoxes.entries()) {
                 let response;
-                let metaPromptResult;
+                let appliedStrategyResult;
                 let outputModel = box.dataset.outputModel;
+                let referenceArgs;
+                let queryInSPARQL;
 
                 const promptModel = box.dataset.promptModel;
                 const strategy = box.dataset.strategy;
@@ -108,17 +122,36 @@ async function queryDistribution() {
                     response = await sendPromptToModel(prompt, outputModel);
                 } else {
 
-                    // Meta-prompted output
-                   
-                    metaPromptResult = await applyMetaPrompt(prompt, strategy, promptModel);
-                    response = await sendPromptToModel(metaPromptResult, outputModel);
-                    
+
+                    switch (strategy) {
+                        case 'L-Reference':
+                            console.log(`@queryDistribution : L-Reference`);
+                            referenceArgs = useLReferenceIN(prompt);
+                            queryInSPARQL = await sendPromptToModel(referenceArgs.metaPrompt.trim(), promptModel, referenceArgs.systemPrompt.trim());
+                            queryDBpedia(queryInSPARQL);    // does not work atm (CORS error)
+                            response = queryInSPARQL;       // the SPARQL-query is the fallback answer, as long as the querying of dbpedia doesn't work
+                            
+                            //todo: translate answer from dbpedia to natural language
+                            //referenceArgs = useLReferenceOUT(queryDBpedia(queryInSPARQL));
+                            //response = await sendPromptToModel(referenceArgs.metaPrompt.trim(), outputModel, referenceArgs.systemPrompt.trim());
+                            break;
+                        case 'C-Reference':
+                            console.log(`@queryDistribution : C-Reference`);
+                            // todo: at the moment no functionality!
+                            break;
+                        default:
+                            console.log(`@queryDistribution : default-case promptHandler`);
+                            // regular Meta-prompted output           
+                            appliedStrategyResult = await applyMetaPrompt(prompt, strategy, promptModel);
+                            response = await sendPromptToModel(appliedStrategyResult, outputModel);
+                    }
+           
                     // Save data for metaprompt
                     metaPromptsData.push({
                         user: currentUser,
                         question_text: prompt,
                         strategy_name: strategy,
-                        metaPrompt: metaPromptResult,
+                        metaPrompt: appliedStrategyResult,
                         model: promptModel,
                         answer_text: response
                     });

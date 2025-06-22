@@ -79,8 +79,8 @@ function useRephrasing(prompt) {
     };
 }
 
-// example from "Einführung in die Wissensrepräsentation" by Prof. Dr. Fabian Neuhaus
-function useLReference(prompt) {
+// few-shot prompting with an example from "Einführung in die Wissensrepräsentation" by Prof. Dr. Fabian Neuhaus
+function useLReferenceIN(prompt) {
     return {
         metaPrompt: `
         # Example question: What films were directed by David Lynch or George Lucas?
@@ -90,13 +90,13 @@ function useLReference(prompt) {
 
             SELECT ?titelEN WHERE {
 
-                { :1 a dbo:Film;
+                { _:1 a dbo:Film;
                 rdfs:label ?titelEN;
                 dbo:director dbr:David Lynch. }
 
                 UNION
 
-                { :1 a dbo:Film;
+                { _:1 a dbo:Film;
                 rdfs:label ?titelEN;
                 dbo:director dbr:George Lucas. }
                 filter langMatches( lang(?titelEN), ”EN” )
@@ -110,6 +110,15 @@ function useLReference(prompt) {
     `,
         systemPrompt: `
         You are a specialized prompt engineer with extensive expertise in SPARQL. Your task is to create queries corresponding to user questions. 
+        `
+    };
+}
+
+function useLReferenceOUT(prompt) {
+    return {
+        metaPrompt: prompt,
+        systemPrompt: `
+        You are a specialized knowledge representation engineer with extensive expertise in SPARQL. Your task is to translate the results from SPARQL queries into natural language.
         `
     };
 }
