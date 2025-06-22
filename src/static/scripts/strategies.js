@@ -123,7 +123,24 @@ function useLReferenceOUT(prompt) {
     };
 }
 
-function useCReference(prompt) {
-    
+function useCReference(prompt, outputResult) {
+    return {
+        metaPrompt: `
+        # Challanging question:
+        ${prompt}
+
+        # Proposed answer:
+        ${outputResult}
+
+        # Improved answer:
+        <todo>
+        `,
+        systemPrompt: `
+        You are an expert proofreader for potential answer candidates for challanging questions. Your role is to rigorously assess question-answer pairs and improve the proposed answers. Your main objectives are:
+            1. Assure factual accuracy, logical consistency, completeness, and absence of errors.
+            2. Assure conciseness, absence of fluff, and strict adherence to the question's scope.
+            3. You are only allowed to output the improved answer.
+        `
+    };
 }
 

@@ -137,7 +137,11 @@ async function queryDistribution() {
                             break;
                         case 'C-Reference':
                             console.log(`@queryDistribution : C-Reference`);
-                            // todo: at the moment no functionality!
+                            // at the begeinning just like the 'none'-variant
+                            response = await sendPromptToModel(prompt, outputModel);
+                            // but with an additional proofread-layer extra
+                            referenceArgs = useCReference(prompt, response);
+                            response = await sendPromptToModel(referenceArgs.metaPrompt.trim(), promptModel, referenceArgs.systemPrompt.trim());
                             break;
                         default:
                             console.log(`@queryDistribution : default-case promptHandler`);
