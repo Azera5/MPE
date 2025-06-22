@@ -14,10 +14,20 @@ async function sendPromptToModel(prompt, model, systemPrompt = '') {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        return data.response;
+        
+        // Return both response and metadata
+        return {
+            response: data.response,
+            response_time: data.response_time,
+            tokens: data.tokens
+        };
     } catch (error) {
         console.error(`Error sending prompt to model ${model}:`, error);
-        return `Error: ${error.message}`;
+        return {
+            response: `Error: ${error.message}`,
+            response_time: 0,
+            tokens: { prompt_eval_count: 0, eval_count: 0, total_tokens: 0 }
+        };
     }
 }
 
@@ -46,7 +56,7 @@ async function applyMetaPrompt(prompt, strategy, model) {
             break;
     }
 
-    // non-reference strategy return
+    // Return the full response object
     return await sendPromptToModel(metaPromptArgs.metaPrompt.trim(), model, metaPromptArgs.systemPrompt.trim());
 }
 
@@ -106,7 +116,7 @@ async function queryDistribution() {
             const responses = [];
             
             for (const [index, box] of outputBoxes.entries()) {
-                let response;
+                let responseData;
                 let boxKey;
                 let appliedStrategyResult;
                 let outputModel = box.dataset.outputModel;
@@ -132,56 +142,73 @@ async function queryDistribution() {
                     model: outputModel,
                     strategy: strategy,
                     position: index,
+                    response_time: 0, // will be set later
+                    tokens: { prompt_eval_count: 0, eval_count: 0, total_tokens: 0 }, // will be set later
                     metaprompt_data: null 
                 };
                 
                 if (box.dataset.strategy == 'none') { 
                     // Raw output                    
-                    response = await sendPromptToModel(prompt, outputModel);
+                    responseData = await sendPromptToModel(prompt, outputModel);
                 } else {
                     let metaPromptText = '';
+                    let metaPromptTokens = { prompt_eval_count: 0, eval_count: 0, total_tokens: 0 };
 
                     switch (strategy) {
                         case 'L-Reference':
                             console.log(`@queryDistribution : L-Reference`);
                             referenceArgs = useLReferenceIN(prompt);
-                            queryInSPARQL = await sendPromptToModel(referenceArgs.metaPrompt.trim(), promptModel, referenceArgs.systemPrompt.trim());
+                            const sparqlResponseData = await sendPromptToModel(referenceArgs.metaPrompt.trim(), promptModel, referenceArgs.systemPrompt.trim());
+                            queryInSPARQL = sparqlResponseData.response;
                             queryDBpedia(queryInSPARQL);    // does not work atm (CORS error)
-                            response = queryInSPARQL;       // the SPARQL-query is the fallback answer, as long as the querying of dbpedia doesn't work
+                            responseData = { 
+                                response: queryInSPARQL,       // the SPARQL-query is the fallback answer, as long as the querying of dbpedia doesn't work
+                                response_time: sparqlResponseData.response_time,
+                                tokens: sparqlResponseData.tokens
+                            };
                             metaPromptText = referenceArgs.metaPrompt.trim();
+                            metaPromptTokens = sparqlResponseData.tokens;
                             
                             //todo: translate answer from dbpedia to natural language
                             //referenceArgs = useLReferenceOUT(queryDBpedia(queryInSPARQL));
-                            //response = await sendPromptToModel(referenceArgs.metaPrompt.trim(), outputModel, referenceArgs.systemPrompt.trim());
+                            //responseData = await sendPromptToModel(referenceArgs.metaPrompt.trim(), outputModel, referenceArgs.systemPrompt.trim());
                             break;
                         case 'C-Reference':
                             console.log(`@queryDistribution : C-Reference`);
-                            // at the begeinning just like the 'none'-variant
-                            response = await sendPromptToModel(prompt, outputModel);
+                            // at the beginning just like the 'none'-variant
+                            const initialResponseData = await sendPromptToModel(prompt, outputModel);
                             // but with an additional proofread-layer extra
-                            referenceArgs = useCReference(prompt, response);
-                            response = await sendPromptToModel(referenceArgs.metaPrompt.trim(), promptModel, referenceArgs.systemPrompt.trim());
+                            referenceArgs = useCReference(prompt, initialResponseData.response);
+                            const proofreadResponseData = await sendPromptToModel(referenceArgs.metaPrompt.trim(), promptModel, referenceArgs.systemPrompt.trim());
+                            responseData = proofreadResponseData;
                             metaPromptText = referenceArgs.metaPrompt.trim();
+                            metaPromptTokens = proofreadResponseData.tokens;
                             break;
                         default:
                             console.log(`@queryDistribution : default-case promptHandler`);
                             // regular Meta-prompted output           
                             appliedStrategyResult = await applyMetaPrompt(prompt, strategy, promptModel);
-                            response = await sendPromptToModel(appliedStrategyResult, outputModel);
-                            metaPromptText = appliedStrategyResult;
+                            const finalResponseData = await sendPromptToModel(appliedStrategyResult.response, outputModel);
+                            responseData = finalResponseData;
+                            metaPromptText = appliedStrategyResult.response;
+                            metaPromptTokens = appliedStrategyResult.tokens;
                     }
            
                     // Set metaprompt data for strategies other than 'none'
                     answerData.metaprompt_data = {
                         strategy_name: strategy,
                         metaPrompt: metaPromptText,
-                        prompt_model: promptModel
+                        prompt_model: promptModel,
+                        tokens: metaPromptTokens
                     };
                 }
                 
-                // Set the actual response
-                answerData.answer = response;
-                responses.push(response);
+                // Set the actual response and metadata
+                answerData.answer = responseData.response;
+                answerData.response_time = responseData.response_time;
+                answerData.tokens = responseData.tokens;
+                
+                responses.push(responseData.response);
                 answersData.push(answerData);
             }
             
@@ -239,6 +266,10 @@ async function queryDistribution() {
                             outputBoxesContent[boxKey].query_id = answerInfo.query_id;
                             if (answerInfo.metaprompt_id) {
                                 outputBoxesContent[boxKey].metaprompt_id = answerInfo.metaprompt_id;
+                            }
+                            // Store token information in local storage
+                            if (answerInfo.tokens) {
+                                outputBoxesContent[boxKey].tokens = answerInfo.tokens;
                             }
                         }
                     });                

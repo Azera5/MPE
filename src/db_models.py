@@ -91,9 +91,13 @@ class Answer(Base):
     precision = Column(Float)
     recall = Column(Float)
     f1 = Column(Float)
-
+    
+   
+    prompt_eval_count = Column(Integer)  # Number of tokens in input
+    eval_count = Column(Integer)         # Number of tokens in output
+    total_tokens = Column(Integer)       # Total number of tokens
+    
     model_rel = relationship("Model")
-
     
 class Feedback(Base):
     """Feedback table to store quality ratings for answers"""
@@ -117,3 +121,7 @@ class Metaprompt(Base):
     prompt = Column(Text)
     model_id = Column(Integer, ForeignKey('models.id'))
     answer_id = Column(Integer, ForeignKey('answers.id'))
+
+    prompt_eval_count = Column(Integer)  # Number of tokens in input
+    eval_count = Column(Integer)         # Number of tokens in output
+    total_tokens = Column(Integer)       # Total number of tokens

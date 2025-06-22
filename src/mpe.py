@@ -19,6 +19,7 @@ from globals import MODELS, META_PROMPTING_MODELS_ONLY, QA_PAIRS, QUESTION_COUNT
 from pathlib import Path
 
 from bert_score import score as bert_score
+from transformers import logging
 
 
 START_APPTAINER = True
@@ -32,6 +33,9 @@ src_dir = Path(__file__).parent
 script_path = src_dir / "start_service.sh"
 log_path = src_dir / ".logs"
 ollama_sif_path = src_dir / "sifs" / "ollama.sif"
+
+# Suppress warnings from BERTScore
+logging.set_verbosity_error() 
 
 # Database configuration
 DATABASE_URL = 'sqlite:///mpe_database.db'  # SQLite database file
@@ -220,6 +224,10 @@ def insert_answer():
                 precision=bScore["Precision"],
                 recall=bScore["Recall"],
                 f1=bScore["F1"],
+                # Add token information
+                prompt_eval_count=answer_data.get('tokens', {}).get('prompt_eval_count', 0),
+                eval_count=answer_data.get('tokens', {}).get('eval_count', 0),
+                total_tokens=answer_data.get('tokens', {}).get('total_tokens', 0)
             )
 
             session.add(new_answer)
@@ -248,13 +256,17 @@ def insert_answer():
                     ).first()
                     
                     if strategy and prompt_model:
-                        # Create Metaprompt with the guaranteed correct answer_id
+                        # Create Metaprompt
                         new_metaprompt = Metaprompt(
                             query_id=query.id,
                             strategy_id=strategy.id,
                             model_id=prompt_model.id,
                             prompt=metaprompt_data['metaPrompt'],
-                            answer_id=new_answer.id  # Hier ist die Zuordnung garantiert korrekt
+                            answer_id=new_answer.id,
+                            # Token information for metaprompt (if available)
+                            prompt_eval_count=metaprompt_data.get('tokens', {}).get('prompt_eval_count', 0),
+                            eval_count=metaprompt_data.get('tokens', {}).get('eval_count', 0),
+                            total_tokens=metaprompt_data.get('tokens', {}).get('total_tokens', 0)
                         )
                         session.add(new_metaprompt)
                         session.flush()
@@ -266,7 +278,12 @@ def insert_answer():
                 'model': model.name,
                 'strategy': answer_data['strategy'],
                 'metaprompt_id': metaprompt_id,
-                'prompt_model': answer_data.get('metaprompt_data', {}).get('prompt_model') if answer_data.get('metaprompt_data') else None
+                'prompt_model': answer_data.get('metaprompt_data', {}).get('prompt_model') if answer_data.get('metaprompt_data') else None,
+                'tokens': {
+                    'prompt_eval_count': new_answer.prompt_eval_count,
+                    'eval_count': new_answer.eval_count,
+                    'total_tokens': new_answer.total_tokens
+                }
             })
 
         session.commit()
@@ -454,33 +471,45 @@ def handle_prompt():
     Accepts JSON with:
     - prompt: The text prompt to send to the LLM (required)
     - model: Optional model name (defaults to DEFAULT_MODEL)
-    
     Returns JSON response with:
     - prompt: The original prompt
     - model: The model used
     - response: The LLM's response
+    - response_time: Time taken for the request
+    - tokens: Token usage information
     - error: Present if there was an error
     """
     # Get JSON data from request
     data = flask_request.get_json()
-
     if not data or 'prompt' not in data:
         return jsonify({
             'error': 'Invalid request. Please provide a "prompt" in the JSON payload.'
         }), 400
-
+    
     # Extract prompt and model (if provided)
     prompt = data['prompt']
     model = data.get('model', DEFAULT_MODEL)
-    system_prompt = data['systemPrompt']
-    # Get response from Ollama
-    response = generate_response(prompt, model, system_prompt)
-
+    system_prompt = data.get('systemPrompt', '')
+    
+    # Get response from Ollama with timing
+    start_time = time.time()
+    response_data = generate_response(prompt, model, system_prompt)
+    end_time = time.time()
+    
+    # Calculate response time
+    response_time = end_time - start_time
+    
     return jsonify({
         'prompt': prompt,
         'model': model,
         'systemPrompt': system_prompt,
-        'response': response
+        'response': response_data.get('response', ''),
+        'response_time': response_time,
+        'tokens': {
+            'prompt_eval_count': response_data.get('prompt_eval_count', 0),
+            'eval_count': response_data.get('eval_count', 0),
+            'total_tokens': response_data.get('total_tokens', 0)
+        }
     })
 
 def generate_response(prompt, model=None, system_prompt=''):
@@ -488,28 +517,49 @@ def generate_response(prompt, model=None, system_prompt=''):
     Send a prompt to the LLM and get the response.
     :param prompt: The input prompt/text to send to the model
     :param model: The model to use (default from config)
-    :return: Generated response from the LLM
+    :param system_prompt: Optional system prompt
+    :return: Dictionary with response and token information
     """
     model = model or DEFAULT_MODEL
     endpoint = f"{OLLAMA_BASE_URL}/api/generate"
-
+    
     payload = {
         "model": model,
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "think": False
     }
-
+    
     # Add system prompt if provided and not empty
     if system_prompt and system_prompt.strip():
         payload["system"] = system_prompt.strip()
-
+    
     try:
         response = requests.post(endpoint, json=payload)
         response.raise_for_status()  # Raise exception for HTTP errors
-        return response.json().get('response', 'No response received')
-    except requests.exceptions.RequestException as e:  # Using requests.exceptions
-        return f"Error communicating with Ollama: {str(e)}"
-
+        
+        response_json = response.json()
+        
+        # Calculate total_tokens if not directly available
+        prompt_tokens = response_json.get('prompt_eval_count', 0)
+        completion_tokens = response_json.get('eval_count', 0)
+        total_tokens = prompt_tokens + completion_tokens
+        
+        return {
+            'response': response_json.get('response', 'No response received'),
+            'prompt_eval_count': prompt_tokens,
+            'eval_count': completion_tokens,
+            'total_tokens': total_tokens
+        }
+        
+    except requests.exceptions.RequestException as e:
+        return {
+            'response': f"Error communicating with Ollama: {str(e)}",
+            'prompt_eval_count': 0,
+            'eval_count': 0,
+            'total_tokens': 0
+        }
+    
 def init_database():
     """Initialize the database by creating all tables and populating initial data"""
     session = None
@@ -825,9 +875,9 @@ def html_table():
                          row_data=rows,
                          active_tab='table')
 
-def get_bert_score(answer:str, truth_answer:str):
-    (P, R, F), hashname = bert_score([answer], [truth_answer], lang="en", return_hash=True)
-    return {"Precision":P, "Recall":R, "F1":F}
+def get_bert_score(answer: str, truth_answer: str):
+    (P, R, F), hashname = bert_score([answer], [truth_answer], lang="en", return_hash=True, verbose=False)
+    return {"Precision": P, "Recall": R, "F1": F}
 
 if __name__ == '__main__':
     init_database()
