@@ -1,3 +1,5 @@
+let customInput = false;
+
 // Function to handle sending prompt to backend for a specific model
 async function sendPromptToModel(prompt, model, systemPrompt = '') {
     try {
@@ -153,6 +155,7 @@ async function queryDistribution() {
             });
 
             const result_backendResponse_insert_query = await backendResponse_insert_query.json();
+            customInput = result_backendResponse_insert_query === 200 ? customInput : !customInput;
             console.log(result_backendResponse_insert_query);
             
             const backendResponse_insert_answer = await fetch('/insert_answer', {
@@ -168,7 +171,7 @@ async function queryDistribution() {
             const result_backendResponse_insert_answer = await backendResponse_insert_answer.json();
             if (!backendResponse_insert_answer.ok) {
                 console.error('Backend error:', result_backendResponse_insert_answer);
-            } else {
+            } else  if (!customInput){
                 // Stores answer IDs for outputs generated without metaprompting (local storage)
                 result_backendResponse_insert_answer.results.forEach(answerInfo => {
                     let boxKey;
@@ -198,7 +201,7 @@ async function queryDistribution() {
                 const result_backendResponse_insert_metaPrompt = await backendResponse_insert_metaPrompt.json();
                 if (!backendResponse_insert_metaPrompt.ok) {
                     console.error('Backend error:', result_backendResponse_insert_metaPrompt);
-                } else {
+                } else if (!customInput){
                      // Stores answer IDs for outputs generated with metaprompting (local storage)
                     result_backendResponse_insert_metaPrompt.results.forEach(answerInfo => {
                     let boxKey;

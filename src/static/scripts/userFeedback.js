@@ -33,7 +33,7 @@ function initializeUserFeedback() {
             // Create best answer button
             const bestAnswerbutton = document.createElement('button');
             bestAnswerbutton.className = 'best-answer-button';
-            bestAnswerbutton.textContent = 'Best Answer';
+            bestAnswerbutton.textContent = (!customInput) ? 'Best Answer' : 'Clear';
             bestAnswerbutton.classList.add('inactive');
             
             // Add click handler for best answer selection
@@ -43,13 +43,17 @@ function initializeUserFeedback() {
                 // Only proceed if the output box is selected
                 if (!this.classList.contains('inactive')) {
                     try {
+                    if (!customInput){
                         // 1. Save to database
                         const boxKey = box.dataset.boxKey;
                         await saveBestAnswerToDatabase(boxKey);
                         
                         // 2. UI Update
                         showFeedbackSliders();
-                        
+                    } else {
+                        removeAllOutputBoxes();
+                        createOutputBoxes();
+                    }
                         console.log('Best answer processed for box:', boxKey);
                     } catch (error) {
                         console.error('Error processing best answer:', error);
