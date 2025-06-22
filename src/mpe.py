@@ -184,15 +184,16 @@ def insert_answer():
 
     try:
         for answer_data in data['answers']:
-            required_fields = ['question_text', 'answer', 'model', 'user', 'strategy']
+            required_fields = ['answer', 'model', 'user', 'strategy', 'query_id']
             if not all(field in answer_data for field in required_fields):
                 return jsonify({'error': f'Missing fields in one of the answers: {answer_data}'}), 400
 
-            # 1. Find the query
-            query = session.query(Query).join(Question).filter(
-                Question.question == answer_data['question_text'],
-                Query.user == answer_data['user']
+            # 1. Find the query by ID
+            query = session.query(Query).filter_by(
+                id=answer_data['query_id'],
+                user=answer_data['user']
             ).first()
+            
             if not query:
                 return jsonify({
                     'message': 'Operation aborted',
@@ -208,13 +209,13 @@ def insert_answer():
 
             question = session.query(Question).filter_by(id=query.question_id).first()
             bScore = get_bert_score(answer_data['answer'], question.correct_answer)
+            
             # 3. Create new answer
             new_answer = Answer(
                 answer=answer_data['answer'],
                 model=model.id,
                 query_id=query.id,
                 position=answer_data.get('position', 0),
-                score=answer_data.get('score', 0.0),
                 response_time=answer_data.get('response_time', 0.0),
                 precision=bScore["Precision"],
                 recall=bScore["Recall"],
@@ -222,7 +223,7 @@ def insert_answer():
             )
 
             session.add(new_answer)
-            session.flush()  # To get ID before commit
+            session.flush()
 
             responses.append({
                 'answer_id': new_answer.id,
@@ -259,17 +260,17 @@ def insert_metaprompt():
     for idx, data in enumerate(data_list):
         try:
             # Check required fields
-            required_fields = ['user', 'question_text', 'strategy_name', 'metaPrompt', 'model', 'answer_text']
+            required_fields = ['user', 'strategy_name', 'metaPrompt', 'model', 'answer_text', 'query_id']
             if not all(field in data for field in required_fields):
                 errors.append({'index': idx, 'error': 'Missing required fields'})
                 continue
 
-            # 1. Find the query
-            query = session.query(Query).join(Question).filter(
-                Question.question == data['question_text'],
-                Query.user == data['user']
+            # 1. Find the query by ID
+            query = session.query(Query).filter_by(
+                id=data['query_id'],
+                user=data['user']
             ).first()
-
+            
             if not query:
                 return jsonify({
                     'message': 'Operation aborted',
@@ -856,18 +857,20 @@ def crude_switch_model(new_model):
 def html_table():
     """Display a master table of all queries with essential information."""
     query_data = pd.read_sql_query("""
-        SELECT 
-            q.id as QueryID,
-            u.user as User,
-            q.timestamp as Timestamp,
-            COUNT(a.id) as AnswerCount
-        FROM queries q
-        JOIN users u ON q.user = u.user
-        LEFT JOIN answers a ON q.id = a.query_id
-        GROUP BY q.id, u.user, q.timestamp
-        ORDER BY q.timestamp ASC
+    SELECT
+        q.id as QueryID,
+        u.user as User,
+        q.timestamp as Timestamp,
+        quest.question as Question,
+        COUNT(a.id) as AnswerCount
+    FROM queries q
+    JOIN users u ON q.user = u.user
+    JOIN questions quest ON q.question_id = quest.id
+    LEFT JOIN answers a ON q.id = a.query_id
+    GROUP BY q.id, u.user, q.timestamp, quest.question
+    ORDER BY q.timestamp ASC
     """, engine.connect())
-
+    
     rows = query_data.to_records(index=False)
     columns = query_data.columns.tolist()
     

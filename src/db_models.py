@@ -88,7 +88,6 @@ class Answer(Base):
     response_time = Column(Float)
     query_id = Column(Integer, ForeignKey('queries.id'))
     position = Column(Integer)
-    score = Column(Float)
     precision = Column(Float)
     recall = Column(Float)
     f1 = Column(Float)

@@ -23,7 +23,6 @@ function initializeUserFeedback() {
         return;
     }
     document.querySelectorAll('.output-box').forEach(box => {
-    
     // Create feedback section if it doesn't exist
     if(box.dataset.boxKey !== 'annotated_answer') {
         if (!box.querySelector('.user-feedback-section')) {
@@ -45,7 +44,7 @@ function initializeUserFeedback() {
                     try {
                     if (!customInput){
                         // 1. Save to database
-                        const boxKey = box.dataset.boxKey;
+                        const boxKey = (box.dataset.boxKey).trim();
                         await saveBestAnswerToDatabase(boxKey);
                         
                         // 2. UI Update
@@ -54,7 +53,7 @@ function initializeUserFeedback() {
                         removeAllOutputBoxes();
                         createOutputBoxes();
                     }
-                        console.log('Best answer processed for box:', boxKey);
+                       
                     } catch (error) {
                         console.error('Error processing best answer:', error);
                     }
@@ -71,6 +70,7 @@ function initializeUserFeedback() {
 
 async function saveBestAnswerToDatabase(boxKey) {
     try {
+        boxKey = boxKey.trim()
         // Gets IDs directly from localStorage
         const answer_id = outputBoxesContent[boxKey].answer_id;
         const query_id = outputBoxesContent[boxKey].query_id;

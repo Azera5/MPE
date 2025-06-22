@@ -22,26 +22,29 @@
                 {% for row in row_data %}
                 <tr data-query-id="{{ row.QueryID }}">
                     <td class="table-id">#{{ row.QueryID }}</td>
-                    <td>{{ row.User }}</td>
-                    <td class="table-timestamp">
-                    {% set timestamp_parts = row.Timestamp.split(' ') %}
-                    {% if timestamp_parts|length >= 2 %}
-                        {% set date_part = timestamp_parts[0] %}
-                        {% set time_part = timestamp_parts[1] %}
-                        {% set date_components = date_part.split('-') %}
-                        {% if date_components|length == 3 %}
-                            <span class="time">{{ time_part }}</span><br>
-                            <span class="date">{{ date_components[2] }}-{{ date_components[1] }}-{{ date_components[0][2:] }}</span>
+                    <td class="col-user-data">{{ row.User }}</td>
+                    <td class="table-timestamp col-timestamp-data">
+                        {% set timestamp_parts = row.Timestamp.split(' ') %}
+                        {% if timestamp_parts|length >= 2 %}
+                            {% set date_part = timestamp_parts[0] %}
+                            {% set time_part = timestamp_parts[1] %}
+                            {% set date_components = date_part.split('-') %}
+                            {% if date_components|length == 3 %}
+                                <span class="time">{{ time_part }}</span><br>
+                                <span class="date">{{ date_components[2] }}-{{ date_components[1] }}-{{ date_components[0][2:] }}</span>
+                            {% else %}
+                                {{ row.Timestamp }}
+                            {% endif %}
                         {% else %}
                             {{ row.Timestamp }}
                         {% endif %}
-                    {% else %}
-                        {{ row.Timestamp }}
-                    {% endif %}
                     </td>
-                    <td>
+                    <td class="col-question-data">
+                        <div class="question-text">{{ row.Question }}</div>
+                    </td>
+                    <td class="col-answers-data">
                         <span class="table-badge {% if row.AnswerCount > 0 %}has-answers{% else %}no-answers{% endif %}">
-                            {{ row.AnswerCount }} answer{% if row.AnswerCount != 1 %}s{% endif %}
+                            {{ row.AnswerCount }}
                         </span>
                     </td>
                 </tr>

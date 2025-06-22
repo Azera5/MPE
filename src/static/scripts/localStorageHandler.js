@@ -11,7 +11,7 @@ function saveStateToLocalStorage() {
     
     try {
         localStorage.setItem('appState', JSON.stringify(stateData));
-        console.log('State saved to localStorage');
+        // console.log('State saved to localStorage');
     } catch (error) {
         console.error('Error saving to localStorage:', error);
     }

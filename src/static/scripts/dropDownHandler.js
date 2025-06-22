@@ -12,8 +12,7 @@ function populateDropdown() {
     
     qaPairs.forEach(pair => {
         const optionItem = document.createElement('div');
-        optionItem.className = 'option-item draggable qa-dropdown-item'; // CSS-Klasse hinzugefügt
-        console.log('populateDropdown')
+        optionItem.className = 'option-item draggable qa-dropdown-item';
         const question_counter = getUserQuestionCount(pair[0]) || 0;    
 
         optionItem.innerHTML = `
