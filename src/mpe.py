@@ -13,9 +13,9 @@ import pandas as pd
 import numpy as np
 
 from dataset import filter_truthfulqa_data
-from db_models import Base, User, Model, Strategy, Question, Query, Answer, Feedback, Metaprompt
+from db_models import Base, User, Model, Strategy, Question, QuestionCounter, Query, Answer, Feedback, Metaprompt
 
-from globals import MODELS, META_PROMPTING_MODELS_ONLY, QA_PAIRS, STRATEGIES
+from globals import MODELS, META_PROMPTING_MODELS_ONLY, QA_PAIRS, QUESTION_COUNTERS, STRATEGIES
 from pathlib import Path
 
 from bert_score import score as bert_score
@@ -62,6 +62,7 @@ def get_config():
         'models': MODELS,
         'meta_models': META_PROMPTING_MODELS_ONLY,
         'qa_pairs': QA_PAIRS,
+        'question_counters': QUESTION_COUNTERS,
         'strategies': STRATEGIES
     })
 
@@ -119,7 +120,40 @@ def insert_query():
         )
 
         session.add(new_query)
+        
+        # Update or create QuestionCounter entry
+        question_counter = session.query(QuestionCounter).filter_by(
+            user=query_data['user'],
+            question_id=question.id
+        ).first()
+        
+        if question_counter:
+            question_counter.count += 1
+        else:
+            question_counter = QuestionCounter(
+                user=query_data['user'],
+                question_id=question.id,
+                count=1
+            )
+            session.add(question_counter)      
+
         session.commit()
+
+        # Update global QUESTION_COUNTERS variable
+        if question.question not in QUESTION_COUNTERS:
+            QUESTION_COUNTERS[question.question] = []
+        
+        # Find or create user entry for this question
+        user_entry = next((entry for entry in QUESTION_COUNTERS[question.question] 
+                         if entry["user"] == query_data['user']), None)
+        
+        if user_entry:
+            user_entry["count"] += 1
+        else:
+            QUESTION_COUNTERS[question.question].append({
+                "user": query_data['user'],
+                "count": 1
+            })
 
         return jsonify({
             'message': 'Query created successfully',
@@ -150,15 +184,16 @@ def insert_answer():
 
     try:
         for answer_data in data['answers']:
-            required_fields = ['question_text', 'answer', 'model', 'user', 'strategy']
+            required_fields = ['answer', 'model', 'user', 'strategy', 'query_id']
             if not all(field in answer_data for field in required_fields):
                 return jsonify({'error': f'Missing fields in one of the answers: {answer_data}'}), 400
 
-            # 1. Find the query
-            query = session.query(Query).join(Question).filter(
-                Question.question == answer_data['question_text'],
-                Query.user == answer_data['user']
+            # 1. Find the query by ID
+            query = session.query(Query).filter_by(
+                id=answer_data['query_id'],
+                user=answer_data['user']
             ).first()
+            
             if not query:
                 return jsonify({
                     'message': 'Operation aborted',
@@ -174,13 +209,13 @@ def insert_answer():
 
             question = session.query(Question).filter_by(id=query.question_id).first()
             bScore = get_bert_score(answer_data['answer'], question.correct_answer)
+            
             # 3. Create new answer
             new_answer = Answer(
                 answer=answer_data['answer'],
                 model=model.id,
                 query_id=query.id,
                 position=answer_data.get('position', 0),
-                score=answer_data.get('score', 0.0),
                 response_time=answer_data.get('response_time', 0.0),
                 precision=bScore["Precision"],
                 recall=bScore["Recall"],
@@ -188,7 +223,7 @@ def insert_answer():
             )
 
             session.add(new_answer)
-            session.flush()  # To get ID before commit
+            session.flush()
 
             responses.append({
                 'answer_id': new_answer.id,
@@ -225,17 +260,17 @@ def insert_metaprompt():
     for idx, data in enumerate(data_list):
         try:
             # Check required fields
-            required_fields = ['user', 'question_text', 'strategy_name', 'metaPrompt', 'model', 'answer_text']
+            required_fields = ['user', 'strategy_name', 'metaPrompt', 'model', 'answer_text', 'query_id']
             if not all(field in data for field in required_fields):
                 errors.append({'index': idx, 'error': 'Missing required fields'})
                 continue
 
-            # 1. Find the query
-            query = session.query(Query).join(Question).filter(
-                Question.question == data['question_text'],
-                Query.user == data['user']
+            # 1. Find the query by ID
+            query = session.query(Query).filter_by(
+                id=data['query_id'],
+                user=data['user']
             ).first()
-
+            
             if not query:
                 return jsonify({
                     'message': 'Operation aborted',
@@ -636,19 +671,39 @@ def load_qa_pairs_from_db():
     Load all questions and their correct answers from the database
     into the global QA_PAIRS variable.
     """
-    global QA_PAIRS
+    global QA_PAIRS, QUESTION_COUNTERS
     session = None
     
     try:
         session = Session()
         
-        # Query all questions and convert to plain tuples immediately
-        questions = session.query(Question.question, Question.correct_answer).all()
-        
-        # Convert SQLAlchemy Row objects to plain Python tuples
+        # 1. Load QA pairs
+        questions = session.query(Question.question, Question.correct_answer).all()  
         QA_PAIRS = tuple((str(q.question), str(q.correct_answer)) for q in questions)
         
-        print(f"Loaded {len(QA_PAIRS)} QA pairs into global variable")
+        # 2. Load question counters
+        question_data = session.query(
+            Question.question,
+            QuestionCounter.user,
+            QuestionCounter.count
+        ).outerjoin(
+            QuestionCounter, Question.id == QuestionCounter.question_id
+        ).all()
+        
+        for question_text, user, count in question_data:
+            if not question_text:
+                continue
+                
+            if question_text not in QUESTION_COUNTERS:
+                QUESTION_COUNTERS[question_text] = []
+            
+            if user and count is not None:  # Only add if counter exists
+                QUESTION_COUNTERS[question_text].append({
+                    "user": user,
+                    "count": count
+                })
+        
+        print(f"Loaded {len(QA_PAIRS)} QA pairs and counters for {len(QUESTION_COUNTERS)} questions")
         return True
         
     except Exception as e:
@@ -784,18 +839,45 @@ def crude_switch_model(new_model):
     else:
         os.system(f'apptainer exec instance://{INSTANCE_NAME} ollama stop {current_model} && apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}')
 
+# @app.route('/table', methods=("POST", "GET"))
+# def html_table():
+#     df = pd.read_sql_query("""SELECT u.user as User, q2.question as QuestionText, prompt as Prompt, a.answer as AnswerText, s.name as StrategyName, m.name as ModelName
+#                                     from metaprompts
+#                                     join main.queries q on q.id = metaprompts.query_id
+#                                     join main.answers a on q.id = a.query_id
+#                                     join main.questions q2 on q.question_id = q2.id
+#                                     join main.users u on q.user = u.user
+#                                     join main.models m on a.model = m.id
+#                                     join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
+
+#     return render_template("data.html", column_names=df.columns.values, row_data=list(df.values.tolist()),link_column="User", active_tab='table')
+
+
 @app.route('/table', methods=("POST", "GET"))
 def html_table():
-    df = pd.read_sql_query("""SELECT u.user as User, q2.question as QuestionText, prompt as Prompt, a.answer as AnswerText, s.name as StrategyName, m.name as ModelName
-                                    from metaprompts
-                                    join main.queries q on q.id = metaprompts.query_id
-                                    join main.answers a on q.id = a.query_id
-                                    join main.questions q2 on q.question_id = q2.id
-                                    join main.users u on q.user = u.user
-                                    join main.models m on a.model = m.id
-                                    join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
-
-    return render_template("data.html", column_names=df.columns.values, row_data=list(df.values.tolist()),link_column="User", zip=zip)
+    """Display a master table of all queries with essential information."""
+    query_data = pd.read_sql_query("""
+    SELECT
+        q.id as QueryID,
+        u.user as User,
+        q.timestamp as Timestamp,
+        quest.question as Question,
+        COUNT(a.id) as AnswerCount
+    FROM queries q
+    JOIN users u ON q.user = u.user
+    JOIN questions quest ON q.question_id = quest.id
+    LEFT JOIN answers a ON q.id = a.query_id
+    GROUP BY q.id, u.user, q.timestamp, quest.question
+    ORDER BY q.timestamp ASC
+    """, engine.connect())
+    
+    rows = query_data.to_records(index=False)
+    columns = query_data.columns.tolist()
+    
+    return render_template('table.html',
+                         column_names=columns,
+                         row_data=rows,
+                         active_tab='table')
 
 def get_bert_score(answer:str, truth_answer:str):
     (P, R, F), hashname = bert_score([answer], [truth_answer], lang="en", return_hash=True)

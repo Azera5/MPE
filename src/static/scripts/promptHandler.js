@@ -1,3 +1,5 @@
+let customInput = false;
+
 // Function to handle sending prompt to backend for a specific model
 async function sendPromptToModel(prompt, model, systemPrompt = '') {
     try {
@@ -108,6 +110,7 @@ async function queryDistribution() {
             
             for (const [index, box] of outputBoxes.entries()) {
                 let response;
+                let boxKey;
                 let appliedStrategyResult;
                 let outputModel = box.dataset.outputModel;
                 let referenceArgs;
@@ -115,7 +118,15 @@ async function queryDistribution() {
 
                 const promptModel = box.dataset.promptModel;
                 const strategy = box.dataset.strategy;
-                
+
+                if(promptModel){
+                    boxKey = generateBoxKey(outputModel, promptModel, strategy, false);
+                } else boxKey = generateBoxKey(outputModel, null, null, true);
+
+                box.dataset.boxKey = boxKey;
+                saveOutputBoxContent(boxKey, ' ');
+
+                console.log(boxKey);
                 
                 if (box.dataset.strategy == 'none') { 
                     // Raw output                    
@@ -152,8 +163,7 @@ async function queryDistribution() {
            
                     // Save data for metaprompt
                     metaPromptsData.push({
-                        user: currentUser,
-                        question_text: prompt,
+                        user: currentUser,                        
                         strategy_name: strategy,
                         metaPrompt: appliedStrategyResult,
                         model: promptModel,
@@ -164,13 +174,11 @@ async function queryDistribution() {
                 responses.push(response);
                 
                 answersData.push({
-                    user: currentUser,
-                    question_text: prompt,
+                    user: currentUser,                    
                     answer: response,
                     model: outputModel,
                     strategy: strategy,
-                    position: index,
-                    score: 0.0 // Not implemented yet
+                    position: index                    
                 });
 
             
@@ -189,80 +197,82 @@ async function queryDistribution() {
                 body: JSON.stringify(insertQueryData)
             });
 
+            const status = backendResponse_insert_query.status;
             const result_backendResponse_insert_query = await backendResponse_insert_query.json();
-            console.log(result_backendResponse_insert_query);
+            const query_id = result_backendResponse_insert_query.query_id;           
             
-            const backendResponse_insert_answer = await fetch('/insert_answer', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    answers: answersData                    
-                })
-            });
+            customInput = status === 200 ? true : false;
             
-            const result_backendResponse_insert_answer = await backendResponse_insert_answer.json();
-            if (!backendResponse_insert_answer.ok) {
-                console.error('Backend error:', result_backendResponse_insert_answer);
-            } else {
-                // Stores answer IDs for outputs generated without metaprompting (local storage)
-                result_backendResponse_insert_answer.results.forEach(answerInfo => {
-                    let boxKey;
-                     
-                    if (answerInfo.strategy === 'none') {
-                        boxKey = generateBoxKey(answerInfo.model, null, null, true)
-                    }
-                    if (boxKey) {
-                    saveOutputBoxContent(boxKey, ' ');
-                    
-                    outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
-                    outputBoxesContent[boxKey].query_id = answerInfo.query_id;                    
-                    }
-                });
-                console.log('Interaction saved:', result_backendResponse_insert_answer);
-            }
-
-            if (metaPromptsData && metaPromptsData.length > 0) {
-                const backendResponse_insert_metaPrompt = await fetch('/insert_metaprompt', {
+            // Only stores data in database when using predefined prompts
+            if(!customInput){
+                const backendResponse_insert_answer = await fetch('/insert_answer', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(metaPromptsData)
+                    body: JSON.stringify({
+                        answers: answersData.map(answer => ({
+                            ...answer,
+                            query_id: query_id
+                        }))                    
+                    })
                 });
-               
-                const result_backendResponse_insert_metaPrompt = await backendResponse_insert_metaPrompt.json();
-                if (!backendResponse_insert_metaPrompt.ok) {
-                    console.error('Backend error:', result_backendResponse_insert_metaPrompt);
-                } else {
-                     // Stores answer IDs for outputs generated with metaprompting (local storage)
-                    result_backendResponse_insert_metaPrompt.results.forEach(answerInfo => {
-                    let boxKey;
-                    
-                    if (answerInfo.strategy !== 'none') {
-                        boxKey = generateBoxKey(answerInfo.outputModel, answerInfo.promptModel, answerInfo.strategy, false);
-                    }                    
-                        if (boxKey) {
-                        saveOutputBoxContent(boxKey, '');                                            
+                
+                const result_backendResponse_insert_answer = await backendResponse_insert_answer.json();
+                if (!backendResponse_insert_answer.ok) {
+                    console.error('Backend error:', result_backendResponse_insert_answer);
+                } else{
+                    // Stores answer IDs for outputs generated without metaprompting (local storage)
+                    result_backendResponse_insert_answer.results.forEach(answerInfo => {
+                        let boxKey;
                         
-                        // Only store answer_id and query_id in the existing structure
+                        if (answerInfo.strategy === 'none') {
+                            boxKey = generateBoxKey(answerInfo.model, null, null, true)
+                        }
+                        if (boxKey) {
                         outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
-                        outputBoxesContent[boxKey].query_id = answerInfo.query_id;
-                        outputBoxesContent[boxKey].metaPrompt_id = answerInfo.metaPrompt_id;                        
+                        outputBoxesContent[boxKey].query_id = answerInfo.query_id;                    
+                        }
+                    });                
+                }
+
+                if (metaPromptsData && metaPromptsData.length > 0) {
+                    const backendResponse_insert_metaPrompt = await fetch('/insert_metaprompt', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(metaPromptsData.map(metaPrompt => ({
+                            ...metaPrompt,
+                            query_id: query_id
+                        })))
+                    });
+                
+                    const result_backendResponse_insert_metaPrompt = await backendResponse_insert_metaPrompt.json();
+                    if (!backendResponse_insert_metaPrompt.ok) {
+                        console.error('Backend error:', result_backendResponse_insert_metaPrompt);
+                    } else{
+                        // Stores answer IDs for outputs generated with metaprompting (local storage)
+                        result_backendResponse_insert_metaPrompt.results.forEach(answerInfo => {
+                        let boxKey = generateBoxKey(answerInfo.outputModel, answerInfo.promptModel, answerInfo.strategy, false);                
+                            if (boxKey) {                        
+                            outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
+                            outputBoxesContent[boxKey].query_id = answerInfo.query_id;
+                        }
+                    });                    
                     }
-                });
-                    console.log('Interaction saved:', result_backendResponse_insert_metaPrompt);
                 }
             }
 
+            incrementUserQuestionCount(prompt);
+            populateDropdown();
             showResults(responses, outputBoxes);
         } catch (error) {
             console.error('Error processing models:', error);
             outputBoxes.forEach(box => {
                 const errorContent = `<p>Error: ${error.message}</p>`;
                 box.innerHTML = errorContent;
-                box.style.opacity = '1';
+                // box.style.opacity = '1';
                 
                 // Save error content to localStorage
                 const boxKey = box.dataset.boxKey;
@@ -276,12 +286,20 @@ async function queryDistribution() {
     // Handle Enter key in input field
     userInput.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter') {
+            if (currentUser === 'User') {
+            openUserPopup();
+            return;
+        }
             await processPrompt();
         }
     });
     
     // Handle Send button click
     sendButton.addEventListener('click', async () => {
+        if (currentUser === 'User') {
+            openUserPopup();
+            return;
+        }
         await processPrompt();
     });
 }
@@ -292,7 +310,7 @@ function showResults(responses, outputBoxes) {
         box.removeAttribute('style');
         const responseContent = responses[index] || 'No response received';
         box.innerHTML = parseMarkdown(responseContent);
-        box.style.opacity = '1';
+        // box.style.opacity = '1';
         box.classList.remove('centered');
         
         // Save content to localStorage

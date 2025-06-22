@@ -1,6 +1,7 @@
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, Text, Enum as SQLEnum
+from sqlalchemy import DateTime, Column, String, Integer, Float, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship 
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from enum import Enum
 
 Base = declarative_base()
@@ -58,6 +59,13 @@ class Question(Base):
     correct_answer = Column(Text)
     source = Column(Text)
 
+class QuestionCounter(Base):
+    """Counts of how often each user repeats specific questions."""
+    __tablename__ = 'question_counters'
+    
+    user = Column(String, ForeignKey('users.user'), primary_key=True)
+    question_id = Column(Integer, ForeignKey('questions.id'), primary_key=True,)
+    count = Column(Integer, default=0)
 
 class Query(Base):
     """Query table to link users with questions and best answers"""
@@ -67,6 +75,7 @@ class Query(Base):
     id = Column(Integer, primary_key=True)
     question_id = Column(Integer, ForeignKey('questions.id'))
     best_answer_id = Column(Integer, ForeignKey('answers.id'))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
 class Answer(Base):
     """Answer table to store generated answers with metadata"""
@@ -79,7 +88,6 @@ class Answer(Base):
     response_time = Column(Float)
     query_id = Column(Integer, ForeignKey('queries.id'))
     position = Column(Integer)
-    score = Column(Float)
     precision = Column(Float)
     recall = Column(Float)
     f1 = Column(Float)

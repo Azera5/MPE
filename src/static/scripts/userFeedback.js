@@ -23,7 +23,6 @@ function initializeUserFeedback() {
         return;
     }
     document.querySelectorAll('.output-box').forEach(box => {
-    
     // Create feedback section if it doesn't exist
     if(box.dataset.boxKey !== 'annotated_answer') {
         if (!box.querySelector('.user-feedback-section')) {
@@ -33,7 +32,7 @@ function initializeUserFeedback() {
             // Create best answer button
             const bestAnswerbutton = document.createElement('button');
             bestAnswerbutton.className = 'best-answer-button';
-            bestAnswerbutton.textContent = 'Best Answer';
+            bestAnswerbutton.textContent = (!customInput) ? 'Best Answer' : 'Clear';
             bestAnswerbutton.classList.add('inactive');
             
             // Add click handler for best answer selection
@@ -43,14 +42,18 @@ function initializeUserFeedback() {
                 // Only proceed if the output box is selected
                 if (!this.classList.contains('inactive')) {
                     try {
+                    if (!customInput){
                         // 1. Save to database
-                        const boxKey = box.dataset.boxKey;
+                        const boxKey = (box.dataset.boxKey).trim();
                         await saveBestAnswerToDatabase(boxKey);
                         
                         // 2. UI Update
                         showFeedbackSliders();
-                        
-                        console.log('Best answer processed for box:', boxKey);
+                    } else {
+                        removeAllOutputBoxes();
+                        createOutputBoxes();
+                    }
+                       
                     } catch (error) {
                         console.error('Error processing best answer:', error);
                     }
@@ -67,6 +70,7 @@ function initializeUserFeedback() {
 
 async function saveBestAnswerToDatabase(boxKey) {
     try {
+        boxKey = boxKey.trim()
         // Gets IDs directly from localStorage
         const answer_id = outputBoxesContent[boxKey].answer_id;
         const query_id = outputBoxesContent[boxKey].query_id;
