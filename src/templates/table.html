@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="table-container">  
+        <div class="table-controls">
+            <input type="text" class="table-search" placeholder="Search queries...">
+            <select class="table-filter">
+                <option value="all">All Queries</option>
+                <option value="answered">With Answers</option>
+                <option value="unanswered">Without Answers</option>
+            </select>
+        </div>
+        
+        <table class="table queries-table">
+            <thead>
+                <tr>
+                    {% for col in column_names %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in row_data %}
+                <tr data-query-id="{{ row.QueryID }}">
+                    <td class="table-id">#{{ row.QueryID }}</td>
+                    <td>{{ row.User }}</td>
+                    <td class="table-timestamp">
+                    {% set timestamp_parts = row.Timestamp.split(' ') %}
+                    {% if timestamp_parts|length >= 2 %}
+                        {% set date_part = timestamp_parts[0] %}
+                        {% set time_part = timestamp_parts[1] %}
+                        {% set date_components = date_part.split('-') %}
+                        {% if date_components|length == 3 %}
+                            <span class="time">{{ time_part }}</span><br>
+                            <span class="date">{{ date_components[2] }}-{{ date_components[1] }}-{{ date_components[0][2:] }}</span>
+                        {% else %}
+                            {{ row.Timestamp }}
+                        {% endif %}
+                    {% else %}
+                        {{ row.Timestamp }}
+                    {% endif %}
+                    </td>
+                    <td>
+                        <span class="table-badge {% if row.AnswerCount > 0 %}has-answers{% else %}no-answers{% endif %}">
+                            {{ row.AnswerCount }} answer{% if row.AnswerCount != 1 %}s{% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

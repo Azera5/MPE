@@ -1,0 +1,133 @@
+/* table style */
+.table-container {
+    padding: 1.5rem 0;
+    width: 100%;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.table-header {
+    margin-bottom: 1.5rem;
+    color: var(--light-text);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px var(--shadow-color);
+    background: white;
+}
+
+.table thead {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+}
+
+.table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--light-text);
+    transition: background-color 0.2s ease;
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Alternating row colors for better readability */
+.table tbody tr:nth-child(even) {
+    background-color: var(--gradient-end);
+}
+
+.table tbody tr:nth-child(odd) {
+    background-color:var(--gradient-start);;
+}
+
+/* Hover effect for table rows */
+.table tbody tr:hover {
+    background-color: var(--accent-hover) !important;
+    cursor: pointer;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.table tbody tr:hover td {
+    color: white;
+}
+
+
+.table-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.table-badge.has-answers {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.table-badge.no-answers {
+    background-color: var(--darker-bg);
+    color: var(--muted-text);
+}
+
+
+.table-timestamp {
+    font-size: 0.9rem;
+    color: var(--muted-text);
+}
+
+
+.table-id {
+    color: var(--accent-secondary);
+    font-family: monospace;
+    font-weight: 600;
+}
+
+/* Search/filter controls */
+.table-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+}
+
+.table-controls input,
+.table-controls select {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--light-text);
+    transition: all 0.2s ease;
+}
+
+.table-controls input:focus,
+.table-controls select:focus {
+    outline: none;
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 2px rgba(80, 212, 206, 0.2);
+}
+
+.table-search::placeholder {
+    color: var(--muted-text);
+}
+
+.table-filter {
+    min-width: 150px;
+}

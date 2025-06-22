@@ -838,18 +838,43 @@ def crude_switch_model(new_model):
     else:
         os.system(f'apptainer exec instance://{INSTANCE_NAME} ollama stop {current_model} && apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}')
 
+# @app.route('/table', methods=("POST", "GET"))
+# def html_table():
+#     df = pd.read_sql_query("""SELECT u.user as User, q2.question as QuestionText, prompt as Prompt, a.answer as AnswerText, s.name as StrategyName, m.name as ModelName
+#                                     from metaprompts
+#                                     join main.queries q on q.id = metaprompts.query_id
+#                                     join main.answers a on q.id = a.query_id
+#                                     join main.questions q2 on q.question_id = q2.id
+#                                     join main.users u on q.user = u.user
+#                                     join main.models m on a.model = m.id
+#                                     join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
+
+#     return render_template("data.html", column_names=df.columns.values, row_data=list(df.values.tolist()),link_column="User", active_tab='table')
+
+
 @app.route('/table', methods=("POST", "GET"))
 def html_table():
-    df = pd.read_sql_query("""SELECT u.user as User, q2.question as QuestionText, prompt as Prompt, a.answer as AnswerText, s.name as StrategyName, m.name as ModelName
-                                    from metaprompts
-                                    join main.queries q on q.id = metaprompts.query_id
-                                    join main.answers a on q.id = a.query_id
-                                    join main.questions q2 on q.question_id = q2.id
-                                    join main.users u on q.user = u.user
-                                    join main.models m on a.model = m.id
-                                    join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
+    """Display a master table of all queries with essential information."""
+    query_data = pd.read_sql_query("""
+        SELECT 
+            q.id as QueryID,
+            u.user as User,
+            q.timestamp as Timestamp,
+            COUNT(a.id) as AnswerCount
+        FROM queries q
+        JOIN users u ON q.user = u.user
+        LEFT JOIN answers a ON q.id = a.query_id
+        GROUP BY q.id, u.user, q.timestamp
+        ORDER BY q.timestamp ASC
+    """, engine.connect())
 
-    return render_template("data.html", column_names=df.columns.values, row_data=list(df.values.tolist()),link_column="User", zip=zip)
+    rows = query_data.to_records(index=False)
+    columns = query_data.columns.tolist()
+    
+    return render_template('table.html',
+                         column_names=columns,
+                         row_data=rows,
+                         active_tab='table')
 
 def get_bert_score(answer:str, truth_answer:str):
     (P, R, F), hashname = bert_score([answer], [truth_answer], lang="en", return_hash=True)
