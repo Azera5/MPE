@@ -90,13 +90,11 @@ async function queryDistribution() {
         // Display loading state
         outputBoxes.forEach(box => {
             box.innerHTML = '<div class="loading-spinner"></div>';
-            // box.style.opacity = '0.8';
             
             const boxKey = box.dataset.boxKey;
             if (boxKey) {
                 saveOutputBoxContent(boxKey, '<div class="loading-spinner"></div>');
             }
-            
         });
 
         randomizeOutputPositions();
@@ -105,7 +103,6 @@ async function queryDistribution() {
         try {
             // Collect all responses before displaying anything
             const answersData = [];
-            const metaPromptsData = [];
             const responses = [];
             
             for (const [index, box] of outputBoxes.entries()) {
@@ -128,11 +125,21 @@ async function queryDistribution() {
 
                 console.log(boxKey);
                 
+                // Prepare answer data structure
+                const answerData = {
+                    user: currentUser,                    
+                    answer: '', // will be set later
+                    model: outputModel,
+                    strategy: strategy,
+                    position: index,
+                    metaprompt_data: null 
+                };
+                
                 if (box.dataset.strategy == 'none') { 
                     // Raw output                    
                     response = await sendPromptToModel(prompt, outputModel);
                 } else {
-
+                    let metaPromptText = '';
 
                     switch (strategy) {
                         case 'L-Reference':
@@ -141,6 +148,7 @@ async function queryDistribution() {
                             queryInSPARQL = await sendPromptToModel(referenceArgs.metaPrompt.trim(), promptModel, referenceArgs.systemPrompt.trim());
                             queryDBpedia(queryInSPARQL);    // does not work atm (CORS error)
                             response = queryInSPARQL;       // the SPARQL-query is the fallback answer, as long as the querying of dbpedia doesn't work
+                            metaPromptText = referenceArgs.metaPrompt.trim();
                             
                             //todo: translate answer from dbpedia to natural language
                             //referenceArgs = useLReferenceOUT(queryDBpedia(queryInSPARQL));
@@ -153,35 +161,28 @@ async function queryDistribution() {
                             // but with an additional proofread-layer extra
                             referenceArgs = useCReference(prompt, response);
                             response = await sendPromptToModel(referenceArgs.metaPrompt.trim(), promptModel, referenceArgs.systemPrompt.trim());
+                            metaPromptText = referenceArgs.metaPrompt.trim();
                             break;
                         default:
                             console.log(`@queryDistribution : default-case promptHandler`);
                             // regular Meta-prompted output           
                             appliedStrategyResult = await applyMetaPrompt(prompt, strategy, promptModel);
                             response = await sendPromptToModel(appliedStrategyResult, outputModel);
+                            metaPromptText = appliedStrategyResult;
                     }
            
-                    // Save data for metaprompt
-                    metaPromptsData.push({
-                        user: currentUser,                        
+                    // Set metaprompt data for strategies other than 'none'
+                    answerData.metaprompt_data = {
                         strategy_name: strategy,
-                        metaPrompt: appliedStrategyResult,
-                        model: promptModel,
-                        answer_text: response
-                    });
-                }                
+                        metaPrompt: metaPromptText,
+                        prompt_model: promptModel
+                    };
+                }
                 
+                // Set the actual response
+                answerData.answer = response;
                 responses.push(response);
-                
-                answersData.push({
-                    user: currentUser,                    
-                    answer: response,
-                    model: outputModel,
-                    strategy: strategy,
-                    position: index                    
-                });
-
-            
+                answersData.push(answerData);
             }
             
             const insertQueryData = {
@@ -205,6 +206,7 @@ async function queryDistribution() {
             
             // Only stores data in database when using predefined prompts
             if(!customInput){
+                // Integrated call - answers and metaprompts are created together
                 const backendResponse_insert_answer = await fetch('/insert_answer', {
                     method: 'POST',
                     headers: {
@@ -222,45 +224,24 @@ async function queryDistribution() {
                 if (!backendResponse_insert_answer.ok) {
                     console.error('Backend error:', result_backendResponse_insert_answer);
                 } else{
-                    // Stores answer IDs for outputs generated without metaprompting (local storage)
+                    // Store answer IDs and metaprompt IDs for all outputs (local storage)
                     result_backendResponse_insert_answer.results.forEach(answerInfo => {
                         let boxKey;
                         
                         if (answerInfo.strategy === 'none') {
-                            boxKey = generateBoxKey(answerInfo.model, null, null, true)
+                            boxKey = generateBoxKey(answerInfo.model, null, null, true);
+                        } else {
+                            boxKey = generateBoxKey(answerInfo.model, answerInfo.prompt_model, answerInfo.strategy, false);
                         }
+                        
                         if (boxKey) {
-                        outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
-                        outputBoxesContent[boxKey].query_id = answerInfo.query_id;                    
-                        }
-                    });                
-                }
-
-                if (metaPromptsData && metaPromptsData.length > 0) {
-                    const backendResponse_insert_metaPrompt = await fetch('/insert_metaprompt', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(metaPromptsData.map(metaPrompt => ({
-                            ...metaPrompt,
-                            query_id: query_id
-                        })))
-                    });
-                
-                    const result_backendResponse_insert_metaPrompt = await backendResponse_insert_metaPrompt.json();
-                    if (!backendResponse_insert_metaPrompt.ok) {
-                        console.error('Backend error:', result_backendResponse_insert_metaPrompt);
-                    } else{
-                        // Stores answer IDs for outputs generated with metaprompting (local storage)
-                        result_backendResponse_insert_metaPrompt.results.forEach(answerInfo => {
-                        let boxKey = generateBoxKey(answerInfo.outputModel, answerInfo.promptModel, answerInfo.strategy, false);                
-                            if (boxKey) {                        
                             outputBoxesContent[boxKey].answer_id = answerInfo.answer_id;
                             outputBoxesContent[boxKey].query_id = answerInfo.query_id;
+                            if (answerInfo.metaprompt_id) {
+                                outputBoxesContent[boxKey].metaprompt_id = answerInfo.metaprompt_id;
+                            }
                         }
-                    });                    
-                    }
+                    });                
                 }
             }
 
@@ -272,7 +253,6 @@ async function queryDistribution() {
             outputBoxes.forEach(box => {
                 const errorContent = `<p>Error: ${error.message}</p>`;
                 box.innerHTML = errorContent;
-                // box.style.opacity = '1';
                 
                 // Save error content to localStorage
                 const boxKey = box.dataset.boxKey;
@@ -287,9 +267,9 @@ async function queryDistribution() {
     userInput.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter') {
             if (currentUser === 'User') {
-            openUserPopup();
-            return;
-        }
+                openUserPopup();
+                return;
+            }
             await processPrompt();
         }
     });

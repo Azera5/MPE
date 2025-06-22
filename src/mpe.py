@@ -173,7 +173,7 @@ def insert_query():
 
 @app.route('/insert_answer', methods=['POST'])
 def insert_answer():
-    """Create new answers in the database"""
+    """Create new answers in the database and optionally create metaprompts"""
     data = flask_request.json
     session = Session()
 
@@ -225,115 +225,61 @@ def insert_answer():
             session.add(new_answer)
             session.flush()
 
+            # 4. Optional meta prompt creation
+            metaprompt_id = None
+            if ('metaprompt_data' in answer_data and 
+                answer_data['metaprompt_data'] is not None and
+                answer_data['strategy'] != 'none'):
+                
+                metaprompt_data = answer_data['metaprompt_data']
+                
+                # Validate metaprompt required fields
+                metaprompt_required = ['strategy_name', 'metaPrompt', 'prompt_model']
+                if all(field in metaprompt_data for field in metaprompt_required):
+                    
+                    # Find strategy
+                    strategy = session.query(Strategy).filter_by(
+                        name=metaprompt_data['strategy_name']
+                    ).first()
+                    
+                    # Find prompt model
+                    prompt_model = session.query(Model).filter_by(
+                        name=metaprompt_data['prompt_model']
+                    ).first()
+                    
+                    if strategy and prompt_model:
+                        # Create Metaprompt with the guaranteed correct answer_id
+                        new_metaprompt = Metaprompt(
+                            query_id=query.id,
+                            strategy_id=strategy.id,
+                            model_id=prompt_model.id,
+                            prompt=metaprompt_data['metaPrompt'],
+                            answer_id=new_answer.id  # Hier ist die Zuordnung garantiert korrekt
+                        )
+                        session.add(new_metaprompt)
+                        session.flush()
+                        metaprompt_id = new_metaprompt.id
+
             responses.append({
                 'answer_id': new_answer.id,
                 'query_id': query.id,
                 'model': model.name,
-                'strategy': answer_data['strategy']
+                'strategy': answer_data['strategy'],
+                'metaprompt_id': metaprompt_id,
+                'prompt_model': answer_data.get('metaprompt_data', {}).get('prompt_model') if answer_data.get('metaprompt_data') else None
             })
 
         session.commit()
         return jsonify({
-            'message': 'Answers created successfully',
+            'message': 'Answers and metaprompts created successfully',
             'results': responses
         }), 201
 
     except Exception as e:
         session.rollback()
-        return jsonify({'error': 'Failed to create answers', 'details': str(e)}), 500
+        return jsonify({'error': 'Failed to create answers/metaprompts', 'details': str(e)}), 500
     finally:
         session.close()
-
-@app.route('/insert_metaprompt', methods=['POST'])
-def insert_metaprompt():
-    """Create multiple metaprompt entries from provided list"""
-    data_list = flask_request.json  # Expecting a list of dicts
-    session = Session()
-
-    if not isinstance(data_list, list):
-        return jsonify({'error': 'Expected a list of metaprompt entries'}), 400
-
-    # results = []
-    errors = []
-    response_data = []
-
-    for idx, data in enumerate(data_list):
-        try:
-            # Check required fields
-            required_fields = ['user', 'strategy_name', 'metaPrompt', 'model', 'answer_text', 'query_id']
-            if not all(field in data for field in required_fields):
-                errors.append({'index': idx, 'error': 'Missing required fields'})
-                continue
-
-            # 1. Find the query by ID
-            query = session.query(Query).filter_by(
-                id=data['query_id'],
-                user=data['user']
-            ).first()
-            
-            if not query:
-                return jsonify({
-                    'message': 'Operation aborted',
-                    'reason': 'Query not found - no entries were processed'
-                }), 200 
-
-            # 2. Find strategy
-            strategy = session.query(Strategy).filter_by(name=data['strategy_name']).first()
-            if not strategy:
-                errors.append({'index': idx, 'error': 'Strategy not found'})
-                continue
-
-            # 3. Find model
-            model = session.query(Model).filter_by(name=data['model']).first()
-            if not model:
-                errors.append({'index': idx, 'error': 'Model not found'})
-                continue
-
-            # 4. Find answer
-            answer = session.query(Answer).filter_by(answer=data['answer_text']).first()
-            if not answer:
-                errors.append({'index': idx, 'error': 'Answer not found'})
-                continue
-
-            # 5. Create Metaprompt
-            new_metaprompt = Metaprompt(
-                query_id=query.id,
-                strategy_id=strategy.id,
-                model_id=model.id,
-                prompt=data['metaPrompt'],
-                answer_id=answer.id
-            )
-            session.add(new_metaprompt)
-
-            # Store complete response data
-            response_data.append({
-                'answer_id': answer.id,
-                'query_id': query.id,                
-                'strategy': data['strategy_name'],
-                'promptModel':  data['model'],
-                'outputModel': answer.model_rel.name,
-                'status': 'created',
-                'metaPrompt_id': new_metaprompt.id,
-                'index': idx
-            })
-
-        except Exception as e:
-            session.rollback()
-            errors.append({'index': idx, 'error': str(e)})
-
-    try:
-        session.commit()
-    except Exception as commit_error:
-        session.rollback()
-        return jsonify({'error': 'Failed to commit metaprompts', 'details': str(commit_error)}), 500
-    finally:
-        session.close()
-
-    return jsonify({
-        'message': 'Metaprompt insert completed',
-        'results': response_data,
-        'errors': errors
-    }), 207 if errors else 201
 
 @app.route('/api/insert_bestAnswer', methods=['POST'])
 def insert_bestAnswer():
