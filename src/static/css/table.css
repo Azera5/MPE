@@ -57,16 +57,11 @@
 
 /* Hover effect for table rows */
 .table tbody tr:hover {
-    background-color: var(--accent-hover) !important;
+    background-color: #4d979350 !important;
     cursor: pointer;
     transform: translateY(-1px);
     box-shadow: 0 2px 8px var(--shadow-color);
 }
-
-.table tbody tr:hover td {
-    color: white;
-}
-
 
 .table-badge {
     display: inline-block;
@@ -130,4 +125,84 @@
 
 .table-filter {
     min-width: 150px;
+}
+
+
+.answers-table-container {
+    margin-top: 2rem;
+    border-top: 2px solid var(--accent-primary);
+    padding-top: 1.5rem;
+}
+
+.answers-table {
+    margin-top: 0;
+    vertical-align: top;
+    padding: 0.75rem;
+}
+
+.best-answer { 
+   background-color: #38a76691 !important; 
+}
+
+.metaprompt-details {
+    background-color: var(--darker-bg);
+}
+
+.metaprompt-content {
+    padding: 1rem;
+}
+
+.strategy-toggle, .feedback-btn {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+}
+
+.strategy-toggle:hover, .feedback-btn:hover {
+    color: var(--accent-secondary);
+}
+
+.feedback-btn[disabled] {
+    color: var(--muted-text);
+    text-decoration: none;
+    cursor: default;
+}
+
+.scrollable-answer {
+    max-height: 100px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border-color: var(--input-border);
+    border-radius: 6px;
+    margin: 0.5rem 0;
+}
+
+/* .scrollable-answer::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollable-answer::-webkit-scrollbar-track {
+    background: var(--accent-primary);
+}
+
+.scrollable-answer::-webkit-scrollbar-thumb {
+    background: var(--accent-primary);
+    border-radius: 3px;
+}
+
+.scrollable-answer::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-secondary);
+} */
+
+/* Add persistent highlight for selected query row */
+.queries-table tbody tr.selected {
+    background-color: var(--accent-primary) !important;
+}
+
+.queries-table tbody tr.selected td {
+    color: var(--darker-bg) !important;
 }

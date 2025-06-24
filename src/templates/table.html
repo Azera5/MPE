@@ -21,8 +21,8 @@
             <tbody>
                 {% for row in row_data %}
                 <tr data-query-id="{{ row.QueryID }}">
-                    <td class="table-id">#{{ row.QueryID }}</td>
-                    <td class="col-user-data">{{ row.User }}</td>
+                    <td class="table-id">{{ row.User }}:{{ row.QueryID }}</td>
+                    <!-- Remove the user column -->
                     <td class="table-timestamp col-timestamp-data">
                         {% set timestamp_parts = row.Timestamp.split(' ') %}
                         {% if timestamp_parts|length >= 2 %}

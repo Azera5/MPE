@@ -125,3 +125,8 @@ class Metaprompt(Base):
     prompt_eval_count = Column(Integer)  # Number of tokens in input
     eval_count = Column(Integer)         # Number of tokens in output
     total_tokens = Column(Integer)       # Total number of tokens
+
+    model = relationship("Model", foreign_keys=[model_id])
+    strategy = relationship("Strategy", foreign_keys=[strategy_id])
+    answer = relationship("Answer", foreign_keys=[answer_id])
+    query = relationship("Query", foreign_keys=[query_id])

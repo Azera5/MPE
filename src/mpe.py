@@ -5,7 +5,7 @@ import requests
 
 from sqlalchemy import create_engine, func, literal
 
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, aliased
 from datetime import datetime
 import time
 
@@ -835,20 +835,6 @@ def crude_switch_model(new_model):
     else:
         os.system(f'apptainer exec instance://{INSTANCE_NAME} ollama stop {current_model} && apptainer exec instance://{INSTANCE_NAME} ollama run {new_model}')
 
-# @app.route('/table', methods=("POST", "GET"))
-# def html_table():
-#     df = pd.read_sql_query("""SELECT u.user as User, q2.question as QuestionText, prompt as Prompt, a.answer as AnswerText, s.name as StrategyName, m.name as ModelName
-#                                     from metaprompts
-#                                     join main.queries q on q.id = metaprompts.query_id
-#                                     join main.answers a on q.id = a.query_id
-#                                     join main.questions q2 on q.question_id = q2.id
-#                                     join main.users u on q.user = u.user
-#                                     join main.models m on a.model = m.id
-#                                     join main.strategies s on metaprompts.strategy_id = s.id""", engine.connect())
-
-#     return render_template("data.html", column_names=df.columns.values, row_data=list(df.values.tolist()),link_column="User", active_tab='table')
-
-
 @app.route('/table', methods=("POST", "GET"))
 def html_table():
     """Display a master table of all queries with essential information."""
@@ -864,16 +850,83 @@ def html_table():
     JOIN questions quest ON q.question_id = quest.id
     LEFT JOIN answers a ON q.id = a.query_id
     GROUP BY q.id, u.user, q.timestamp, quest.question
-    ORDER BY q.timestamp ASC
+    ORDER BY q.timestamp DESC
     """, engine.connect())
     
-    rows = query_data.to_records(index=False)
-    columns = query_data.columns.tolist()
+    # Convert to list of dictionaries and combine user:queryID
+    rows = []
+    for _, row in query_data.iterrows():
+        row_dict = row.to_dict()
+        row_dict['UserQueryID'] = f"{row_dict['User']}:{row_dict['QueryID']}"
+        rows.append(row_dict)
+    
+    columns = ['UserQueryID', 'Timestamp', 'Question', 'AnswerCount']
     
     return render_template('table.html',
                          column_names=columns,
                          row_data=rows,
                          active_tab='table')
+
+@app.route('/api/query_answers/<int:query_id>')
+def get_query_answers(query_id):
+    """Get all answers for a specific query with related information"""
+    session = Session()
+    try:
+        # Get the query to check for best answer
+        query = session.query(Query).filter_by(id=query_id).first()
+        if not query:
+            return jsonify({'error': 'Query not found'}), 404        
+        
+        AnswerModel = aliased(Model)
+        MetapromptModel = aliased(Model)
+        
+        # Get all answers with related data including metaprompt model
+        answers = session.query(
+            Answer.id,
+            Answer.answer,
+            Answer.f1,
+            Answer.prompt_eval_count,
+            Answer.eval_count,
+            Answer.total_tokens,
+            AnswerModel.name.label('model_name'),
+            Strategy.name.label('strategy_name'),
+            Metaprompt.prompt.label('metaprompt'),
+            MetapromptModel.name.label('metaprompt_model_name'),  # Metaprompt Model
+            func.coalesce(Feedback.id, 0).label('has_feedback')
+        ).join(
+            AnswerModel, Answer.model == AnswerModel.id
+        ).outerjoin(
+            Metaprompt, Answer.id == Metaprompt.answer_id
+        ).outerjoin(
+            Strategy, Metaprompt.strategy_id == Strategy.id
+        ).outerjoin(
+            MetapromptModel, Metaprompt.model_id == MetapromptModel.id  # Join über Metaprompt
+        ).outerjoin(
+            Feedback, Answer.feedback_id == Feedback.id
+        ).filter(
+            Answer.query_id == query_id
+        ).all()
+        
+        result = []
+        for answer in answers:
+            result.append({
+                'id': f"{query.user}:{answer.id}",
+                'answer': answer.answer,
+                'model': answer.model_name,
+                'strategy': answer.strategy_name if answer.strategy_name else 'None',
+                'tokens': f"{answer.prompt_eval_count}/{answer.eval_count}/{answer.total_tokens}",
+                'score': answer.f1,
+                'is_best': answer.id == query.best_answer_id,
+                'metaprompt': answer.metaprompt,
+                'metaprompt_model': answer.metaprompt_model_name,
+                'has_feedback': bool(answer.has_feedback)
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
 
 def get_bert_score(answer: str, truth_answer: str):
     (P, R, F), hashname = bert_score([answer], [truth_answer], lang="en", return_hash=True, verbose=False)
