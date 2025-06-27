@@ -850,7 +850,7 @@ def html_table():
     JOIN questions quest ON q.question_id = quest.id
     LEFT JOIN answers a ON q.id = a.query_id
     GROUP BY q.id, u.user, q.timestamp, quest.question
-    ORDER BY q.timestamp DESC
+    ORDER BY q.timestamp ASC
     """, engine.connect())
     
     # Convert to list of dictionaries and combine user:queryID
@@ -900,7 +900,7 @@ def get_query_answers(query_id):
         ).outerjoin(
             Strategy, Metaprompt.strategy_id == Strategy.id
         ).outerjoin(
-            MetapromptModel, Metaprompt.model_id == MetapromptModel.id  # Join über Metaprompt
+            MetapromptModel, Metaprompt.model_id == MetapromptModel.id
         ).outerjoin(
             Feedback, Answer.feedback_id == Feedback.id
         ).filter(
@@ -927,6 +927,52 @@ def get_query_answers(query_id):
         return jsonify({'error': str(e)}), 500
     finally:
         session.close()
+
+
+@app.route('/api/custom_query', methods=['POST'])
+def execute_custom_query():
+    """Execute a custom SQL query and return results as JSON"""
+    data = flask_request.get_json()
+    
+    if not data or 'query' not in data:
+        return jsonify({'error': 'Missing SQL query'}), 400
+    
+    sql_query = data['query'].strip()
+    
+    if not sql_query:
+        return jsonify({'error': 'Empty SQL query'}), 400
+    
+    # Security check - only allow SELECT statements
+    if not sql_query.upper().startswith('SELECT'):
+        return jsonify({'error': 'Only SELECT statements are allowed'}), 400
+    
+    session = Session()
+    try:
+        # Execute the query using pandas for easy JSON conversion
+        result_df = pd.read_sql_query(sql_query, engine.connect())
+        
+        # Replace NULL values with "NULL" string
+        result_df = result_df.fillna("NULL")
+        
+        # Convert to list of dictionaries
+        rows = result_df.to_dict('records')
+        columns = list(result_df.columns)
+        
+        return jsonify({
+            'columns': columns,
+            'rows': rows,
+            'row_count': len(rows)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Query execution failed',
+            'details': str(e)
+        }), 400
+    finally:
+        session.close()
+
+
 
 def get_bert_score(answer: str, truth_answer: str):
     (P, R, F), hashname = bert_score([answer], [truth_answer], lang="en", return_hash=True, verbose=False)

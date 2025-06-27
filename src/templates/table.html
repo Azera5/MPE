@@ -1,13 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="table-container">  
-        <div class="table-controls">
-            <input type="text" class="table-search" placeholder="Search queries...">
-            <select class="table-filter">
-                <option value="all">All Queries</option>
-                <option value="answered">With Answers</option>
-                <option value="unanswered">Without Answers</option>
-            </select>
+    <div class="table-container">
+        <div class="table-controls">            
+            <div class="sql-query-section">
+                <textarea class="sql-query-input" placeholder="Enter SQL query..." rows="1"></textarea>
+                <button class="sql-query-btn">Execute</button>
+            </div>
         </div>
         
         <table class="table queries-table">
