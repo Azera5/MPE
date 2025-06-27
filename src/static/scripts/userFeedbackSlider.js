@@ -15,13 +15,35 @@ function showFeedbackSliders() {
             const slidersContainer = document.createElement('div');
             slidersContainer.className = 'feedback-sliders-container';
 
-            // Define the feedback criteria
+            // Define the feedback criteria with tooltip content
             const criteria = [
-                { name: 'accuracy', label: 'Accuracy' },
-                { name: 'completeness', label: 'Completeness' },
-                { name: 'relevance', label: 'Relevance' },
-                { name: 'coherence', label: 'Coherence' },
-                { name: 'clarity', label: 'Clarity' }
+                { 
+                    name: 'completeness', 
+                    label: 'Completeness',
+                    tooltip: '2: "Completely correct" - no errors or omissions.\n' +
+                            '1: "Mostly correct" - minor errors or omissions.\n' +
+                            '0: "Partially correct" - significant parts of the true answer are present.\n' +
+                            '-1: "Barely correct" - mostly errors or omissions.\n' +
+                            '-2: "Completely incorrect" - mostly errors or omissions.'
+                },
+                { 
+                    name: 'relevance', 
+                    label: 'Relevance',
+                    tooltip: '2: "Relevant and concise" - no off-topic information.\n' +
+                            '1: "Mostly relevant" - mostly on-topic information.\n' +
+                            '0: "Somewhat relevant" - significant amount of on-topic information is present.\n' +
+                            '-1: "Barely relevant" - mostly off-topic information.\n' +
+                            '-2: "Completely irrelevant" - no on-topic information.'
+                },
+                { 
+                    name: 'clarity', 
+                    label: 'Clarity',
+                    tooltip: '2: "Extremely clear" - explanation is very easy to understand.\n' +
+                            '1: "Mostly clear" - explanation is understandable with minor confusion.\n' +
+                            '0: "Somewhat clear" - explanation has some understandable parts.\n' +
+                            '-1: "Barely clear" - explanation is mostly confusing.\n' +
+                            '-2: "Completely unclear" - explanation is not understandable at all.'
+                }
             ];
 
             // Create sliders for each criterion
@@ -32,10 +54,15 @@ function showFeedbackSliders() {
                 const mainGroup = document.createElement('div');
                 mainGroup.className = 'slider-group';
 
-                // Create label
+                // Create label with tooltip
+                const labelContainer = document.createElement('div');
+                labelContainer.className = 'slider-label-container';
+                
                 const label = document.createElement('div');
-                label.className = 'slider-label';
+                label.className = 'slider-label tooltip';
                 label.textContent = criterion.label;
+                label.title = criterion.tooltip;                             
+                labelContainer.appendChild(label);
 
                 // Create slider container
                 const sliderContainer = document.createElement('div');
@@ -66,7 +93,7 @@ function showFeedbackSliders() {
                 sliderContainer.appendChild(slider);
                 sliderContainer.appendChild(scaleContainer);
                 
-                mainGroup.appendChild(label);
+                mainGroup.appendChild(labelContainer);
                 mainGroup.appendChild(sliderContainer);               
 
                 sliderGroup.appendChild(mainGroup);
@@ -76,10 +103,7 @@ function showFeedbackSliders() {
             // Create action buttons
             const actionsContainer = document.createElement('div');
             actionsContainer.className = 'slider-actions';
-        
-
             
-            // actionsContainer.appendChild(cancelButton);
             slidersContainer.appendChild(actionsContainer);
 
             // Replace content in feedback section
@@ -88,7 +112,6 @@ function showFeedbackSliders() {
 
             // Adjust height for sliders            
             feedbackSection.style.minHeight = '300px';
-        
         }
     });
 }
@@ -139,10 +162,8 @@ async function handleFeedbackSubmission() {
             feedbackData.push({
                 answer_id: answer_id,
                 user: currentUser,
-                accuracy: sliderValues.accuracy || 0,
                 completeness: sliderValues.completeness || 0,
                 relevance: sliderValues.relevance || 0,
-                coherence: sliderValues.coherence || 0,
                 clarity: sliderValues.clarity || 0
             });
         });

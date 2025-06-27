@@ -397,7 +397,7 @@ def insert_feedback():
         for idx, entry in enumerate(feedback_entries):
             try:
                 # Check required fields
-                required_fields = ['answer_id', 'user', 'accuracy', 'completeness', 'relevance', 'coherence', 'clarity']
+                required_fields = ['answer_id', 'user', 'completeness', 'relevance', 'clarity']
                 if not all(field in entry for field in required_fields):
                     errors.append({'index': idx, 'error': 'Missing required fields'})
                     continue
@@ -422,11 +422,9 @@ def insert_feedback():
 
                 # Create new feedback entry
                 new_feedback = Feedback(
-                    user=entry['user'],
-                    accuracy=float(entry['accuracy']),
+                    user=entry['user'],                
                     completeness=float(entry['completeness']),
                     relevance=float(entry['relevance']),
-                    coherence=float(entry['coherence']),
                     clarity=float(entry['clarity'])
                 )
 
@@ -892,7 +890,9 @@ def get_query_answers(query_id):
             Strategy.name.label('strategy_name'),
             Metaprompt.prompt.label('metaprompt'),
             MetapromptModel.name.label('metaprompt_model_name'),  # Metaprompt Model
-            func.coalesce(Feedback.id, 0).label('has_feedback')
+            Feedback.completeness,
+            Feedback.relevance,
+            Feedback.clarity
         ).join(
             AnswerModel, Answer.model == AnswerModel.id
         ).outerjoin(
@@ -919,7 +919,11 @@ def get_query_answers(query_id):
                 'is_best': answer.id == query.best_answer_id,
                 'metaprompt': answer.metaprompt,
                 'metaprompt_model': answer.metaprompt_model_name,
-                'has_feedback': bool(answer.has_feedback)
+                'feedback': {
+                    'completeness': answer.completeness,
+                    'relevance': answer.relevance,
+                    'clarity': answer.clarity
+                }
             })
         
         return jsonify(result)

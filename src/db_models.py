@@ -105,10 +105,8 @@ class Feedback(Base):
     
     user = Column(String, ForeignKey('users.user'))
     id = Column(Integer, primary_key=True)
-    accuracy = Column(Float)
     completeness = Column(Float)
     relevance = Column(Float)
-    coherence = Column(Float)
     clarity = Column(Float)
 
 class Metaprompt(Base):

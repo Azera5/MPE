@@ -185,19 +185,23 @@ function createAnswersTable(answers) {
             answer.strategy : 
             `<button class="strategy-toggle">${answer.strategy}</button>`;
             
-        const feedbackButton = answer.has_feedback ?
-            '<button class="feedback-btn" disabled>Feedback Submitted</button>' :
-            '<button class="feedback-btn">Feedback</button>';
+        // Format feedback scores
+        const completeness = answer.feedback?.completeness !== null ? Math.round(answer.feedback.completeness) : '-';
+        const relevance = answer.feedback?.relevance !== null ? Math.round(answer.feedback.relevance) : '-';
+        const clarity = answer.feedback?.clarity !== null ? Math.round(answer.feedback.clarity) : '-';
+        const feedbackCell = `${completeness} | ${relevance} | ${clarity}`;
+            
+        const tokens = answer.tokens ? answer.tokens.replace(/\//g, ' | ') : '- | - | -';
             
         rowsHTML += `
             <tr class="${combinedClass}" data-answer-id="${answer.id.split(':')[1]}">
                 <td>${answer.id}</td>
                 <td><div class="scrollable-answer">${parseMarkdown(answer.answer)}</div></td>
                 <td>${answer.model}</td>
-                <td class="strategy-cell">${strategyCell}</td>
-                <td>${answer.tokens}</td>
+                <td style="min-width: 125px; class="strategy-cell">${strategyCell}</td>
+                <td style="min-width: 200px;" class="feedback-scores">${tokens}</td>
                 <td>${answer.score ? answer.score.toFixed(2) : 'N/A'}</td>
-                <td>${feedbackButton}</td>
+                <td style="min-width: 120px;" class="feedback-scores">${feedbackCell}</td>
             </tr>
             <tr class="metaprompt-details" style="display: none;">
                 <td colspan="7">
@@ -205,7 +209,7 @@ function createAnswersTable(answers) {
                         <h4>Metaprompt Details</h4>
                         <div class="metaprompt-text">${parseMarkdown(answer.metaprompt || 'N/A')}</div>
                         <p><strong>Model:</strong> ${answer.metaprompt_model || 'N/A'}</p>
-                        <p><strong>Tokens:</strong> ${answer.tokens}</p>
+                        <p><strong>Tokens:</strong> ${tokens}</p>
                     </div>
                 </td>
             </tr>
@@ -221,9 +225,9 @@ function createAnswersTable(answers) {
                         <th>Answer</th>
                         <th>Model</th>
                         <th>Strategy</th>
-                        <th>Tokens (P | E | T)</th>
+                        <th style="min-width: 200px;">Tokens<br>(P | E | T)</th>
                         <th>F1 Score</th>
-                        <th>Feedback</th>
+                        <th style="min-width: 120px;">Feedback<br>(C | R | CL)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -233,7 +237,6 @@ function createAnswersTable(answers) {
         </div>
     `;
 }
-
 function setupAnswersTableEvents() {
     // Strategy toggle buttons
     document.querySelectorAll('.strategy-toggle').forEach(button => {

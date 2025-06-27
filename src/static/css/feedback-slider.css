@@ -22,9 +22,17 @@
     font-weight: 500;
     color: var(--light-text);
     text-align: left;
-    padding-bottom: 23px;
     text-transform: capitalize;
     gap: 2px;
+    position: relative;
+}
+
+.slider-label-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 100px;
+    padding-bottom: 23px;
 }
 
 .slider-container {
