@@ -247,7 +247,7 @@ function createAnswersTable(answers) {
                         <th>Strategy</th>
                         <th>Tokens<br>(P | E | T)</th>
                         <th>F1 Score</th>
-                        <th>Feedback<br>(Co | Re | C)</th>
+                        <th>Feedback<br>(Co | R | Cl)</th>
                     </tr>
                 </thead>
                 <tbody>
