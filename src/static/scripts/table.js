@@ -173,43 +173,63 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+
+// TODO - Fix MetaPrompt tokens display (currently showing answer tokens)
 function createAnswersTable(answers) {
     let rowsHTML = '';
-    
     answers.forEach((answer, index) => {
         const bestAnswerClass = answer.is_best ? 'best-answer' : '';
         const rowClass = index % 2 === 0 ? 'even-row' : 'odd-row';
         const combinedClass = `${rowClass} ${bestAnswerClass}`.trim();
         
-        const strategyCell = answer.strategy === 'None' ? 
-            answer.strategy : 
+        // Create strategy toggle button
+        const strategyCell = answer.strategy === 'None' ?
+            answer.strategy :
             `<button class="strategy-toggle">${answer.strategy}</button>`;
-            
+
+        // Create answer cell with toggle functionality
+        const shortAnswer = parseMarkdown(answer.answer);
+        const fullAnswer = parseMarkdown(answer.answer);
+        const answerCell = `
+            <div class="scrollable-answer clickable-answer" 
+                 data-short-answer="${encodeURIComponent(shortAnswer)}"
+                 data-full-answer="${encodeURIComponent(fullAnswer)}">
+                ${shortAnswer}
+            </div>
+        `;
+
         // Format feedback scores
         const completeness = answer.feedback?.completeness !== null ? Math.round(answer.feedback.completeness) : '-';
         const relevance = answer.feedback?.relevance !== null ? Math.round(answer.feedback.relevance) : '-';
         const clarity = answer.feedback?.clarity !== null ? Math.round(answer.feedback.clarity) : '-';
         const feedbackCell = `${completeness} | ${relevance} | ${clarity}`;
-            
         const tokens = answer.tokens ? answer.tokens.replace(/\//g, ' | ') : '- | - | -';
-            
+        
         rowsHTML += `
             <tr class="${combinedClass}" data-answer-id="${answer.id.split(':')[1]}">
                 <td>${answer.id}</td>
-                <td><div class="scrollable-answer">${parseMarkdown(answer.answer)}</div></td>
+                <td>${answerCell}</td>
                 <td>${answer.model}</td>
-                <td style="min-width: 125px; class="strategy-cell">${strategyCell}</td>
+                <td style="min-width: 125px;" class="strategy-cell">${strategyCell}</td>
                 <td style="min-width: 200px;" class="feedback-scores">${tokens}</td>
                 <td>${answer.score ? answer.score.toFixed(2) : 'N/A'}</td>
                 <td style="min-width: 120px;" class="feedback-scores">${feedbackCell}</td>
             </tr>
-            <tr class="metaprompt-details" style="display: none;">
+            <tr class="details-row" style="display: none;">
                 <td colspan="7">
-                    <div class="metaprompt-content">
-                        <h4>Metaprompt Details</h4>
-                        <div class="metaprompt-text">${parseMarkdown(answer.metaprompt || 'N/A')}</div>
-                        <p><strong>Model:</strong> ${answer.metaprompt_model || 'N/A'}</p>
-                        <p><strong>Tokens:</strong> ${tokens}</p>
+                    <div class="answer-details" style="display: none;">
+                        <div class="metaprompt-content">
+                            <h4>Full Answer</h4>
+                            <div class="metaprompt-text">${fullAnswer}</div>
+                        </div>
+                    </div>
+                    <div class="strategy-details" style="display: none;">
+                        <div class="metaprompt-content">
+                            <h4>Strategy Details</h4>
+                            <div class="metaprompt-text">${parseMarkdown(answer.metaprompt || 'N/A')}</div>
+                            <p><strong>Model:</strong> ${answer.metaprompt_model || 'N/A'}</p>
+                            <p><strong>Tokens:</strong> ${tokens}</p>
+                        </div>
                     </div>
                 </td>
             </tr>
@@ -225,9 +245,9 @@ function createAnswersTable(answers) {
                         <th>Answer</th>
                         <th>Model</th>
                         <th>Strategy</th>
-                        <th style="min-width: 200px;">Tokens<br>(P | E | T)</th>
+                        <th>Tokens<br>(P | E | T)</th>
                         <th>F1 Score</th>
-                        <th style="min-width: 120px;">Feedback<br>(C | R | CL)</th>
+                        <th>Feedback<br>(Co | Re | C)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -237,6 +257,68 @@ function createAnswersTable(answers) {
         </div>
     `;
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Delegate click events for both answer toggles and strategy toggles
+    document.addEventListener('click', function(e) {
+        // Handle answer toggle clicks
+        if (e.target.classList.contains('clickable-answer')) {
+            const answerCell = e.target;
+            const row = answerCell.closest('tr');
+            const detailsRow = row.nextElementSibling;
+            const answerDetails = detailsRow.querySelector('.answer-details');
+            const strategyDetails = detailsRow.querySelector('.strategy-details');
+            const strategyButton = row.querySelector('.strategy-toggle');
+
+            // If details row is hidden, show answer details
+            if (detailsRow.style.display === 'none') {
+                detailsRow.style.display = '';
+                answerDetails.style.display = '';
+                strategyDetails.style.display = 'none';
+                if (strategyButton) strategyButton.classList.remove('active');
+            } 
+            // If answer details are already showing, hide everything
+            else if (answerDetails.style.display !== 'none') {
+                detailsRow.style.display = 'none';
+            }
+            // If strategy details are showing, switch to answer details
+            else {
+                answerDetails.style.display = '';
+                strategyDetails.style.display = 'none';
+                if (strategyButton) strategyButton.classList.remove('active');
+            }
+        }
+        
+        // Handle strategy toggle clicks
+        if (e.target.classList.contains('strategy-toggle')) {
+            const button = e.target;
+            const row = button.closest('tr');
+            const detailsRow = row.nextElementSibling;
+            const answerDetails = detailsRow.querySelector('.answer-details');
+            const strategyDetails = detailsRow.querySelector('.strategy-details');
+
+            // If details row is hidden, show strategy details
+            if (detailsRow.style.display === 'none') {
+                detailsRow.style.display = '';
+                strategyDetails.style.display = '';
+                answerDetails.style.display = 'none';
+                button.classList.add('active');
+            } 
+            // If strategy details are already showing, hide everything
+            else if (strategyDetails.style.display !== 'none') {
+                detailsRow.style.display = 'none';
+                button.classList.remove('active');
+            }
+            // If answer details are showing, switch to strategy details
+            else {
+                strategyDetails.style.display = '';
+                answerDetails.style.display = 'none';
+                button.classList.add('active');
+            }
+        }
+    });
+});
+
 function setupAnswersTableEvents() {
     // Strategy toggle buttons
     document.querySelectorAll('.strategy-toggle').forEach(button => {
