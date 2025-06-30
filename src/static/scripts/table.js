@@ -174,7 +174,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-// TODO - Fix MetaPrompt tokens display (currently showing answer tokens)
 function createAnswersTable(answers) {
     let rowsHTML = '';
     answers.forEach((answer, index) => {
@@ -203,7 +202,9 @@ function createAnswersTable(answers) {
         const relevance = answer.feedback?.relevance !== null ? Math.round(answer.feedback.relevance) : '-';
         const clarity = answer.feedback?.clarity !== null ? Math.round(answer.feedback.clarity) : '-';
         const feedbackCell = `${completeness} | ${relevance} | ${clarity}`;
-        const tokens = answer.tokens ? answer.tokens.replace(/\//g, ' | ') : '- | - | -';
+        
+        const metapromptTokens = answer.metaprompt?.tokens ? answer.metaprompt.tokens.replace(/\//g, ' | ') : '- | - | -';
+        const answerTokens = answer.tokens ? answer.tokens.replace(/\//g, ' | ') : '- | - | -';
         
         rowsHTML += `
             <tr class="${combinedClass}" data-answer-id="${answer.id.split(':')[1]}">
@@ -211,7 +212,7 @@ function createAnswersTable(answers) {
                 <td>${answerCell}</td>
                 <td>${answer.model}</td>
                 <td style="min-width: 125px;" class="strategy-cell">${strategyCell}</td>
-                <td style="min-width: 200px;" class="feedback-scores">${tokens}</td>
+                <td style="min-width: 200px;" class="feedback-scores">${answerTokens}</td>
                 <td>${answer.score ? answer.score.toFixed(2) : 'N/A'}</td>
                 <td style="min-width: 120px;" class="feedback-scores">${feedbackCell}</td>
             </tr>
@@ -221,14 +222,15 @@ function createAnswersTable(answers) {
                         <div class="metaprompt-content">
                             <h4>Full Answer</h4>
                             <div class="metaprompt-text">${fullAnswer}</div>
+                            <p><strong>Answer Tokens:</strong> ${answerTokens}</p>
                         </div>
                     </div>
                     <div class="strategy-details" style="display: none;">
                         <div class="metaprompt-content">
                             <h4>Strategy Details</h4>
-                            <div class="metaprompt-text">${parseMarkdown(answer.metaprompt || 'N/A')}</div>
-                            <p><strong>Model:</strong> ${answer.metaprompt_model || 'N/A'}</p>
-                            <p><strong>Tokens:</strong> ${tokens}</p>
+                            <div class="metaprompt-text">${parseMarkdown(answer.metaprompt?.prompt || 'N/A')}</div>
+                            <p><strong>Model:</strong> ${answer.metaprompt?.model || 'N/A'}</p>
+                            <p><strong>Tokens:</strong> ${metapromptTokens}</p>
                         </div>
                     </div>
                 </td>
@@ -245,7 +247,7 @@ function createAnswersTable(answers) {
                         <th>Answer</th>
                         <th>Model</th>
                         <th>Strategy</th>
-                        <th>Tokens<br>(P | E | T)</th>
+                        <th>Answer Tokens<br>(P | E | T)</th>
                         <th>F1 Score</th>
                         <th>Feedback<br>(Co | R | Cl)</th>
                     </tr>
@@ -319,18 +321,61 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function setupAnswersTableEvents() {
-    // Strategy toggle buttons
-    document.querySelectorAll('.strategy-toggle').forEach(button => {
-        button.addEventListener('click', function() {
-            const row = this.closest('tr');
+function setupStrategyToggleHandlers() {
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('strategy-toggle')) {
+            const row = e.target.closest('tr');
             const detailsRow = row.nextElementSibling;
+            const strategyDetails = detailsRow.querySelector('.strategy-details');
+            const answerDetails = detailsRow.querySelector('.answer-details');
             
-            if (detailsRow.style.display === 'none') {
-                detailsRow.style.display = 'table-row';
+            // Check if strategy details are currently visible
+            const isStrategyVisible = strategyDetails.style.display !== 'none';
+            
+            if (isStrategyVisible) {
+                // If strategy is visible, hide it and collapse the details row
+                strategyDetails.style.display = 'none';
+                
+                // Only hide the entire details row if answer details are also hidden
+                if (answerDetails.style.display === 'none') {
+                    detailsRow.style.display = 'none';
+                }
             } else {
-                detailsRow.style.display = 'none';
+                // Show strategy details and ensure details row is visible
+                detailsRow.style.display = 'table-row';
+                strategyDetails.style.display = 'block';
+                
+                // Hide answer details when showing strategy details
+                answerDetails.style.display = 'none';
             }
-        });
+        }
+        
+        // Handle answer cell clicks (existing functionality)
+        if (e.target.classList.contains('clickable-answer')) {
+            const row = e.target.closest('tr');
+            const detailsRow = row.nextElementSibling;
+            const answerDetails = detailsRow.querySelector('.answer-details');
+            const strategyDetails = detailsRow.querySelector('.strategy-details');
+            
+            // Check if answer details are currently visible
+            const isAnswerVisible = answerDetails.style.display !== 'none';
+            
+            if (isAnswerVisible) {
+                // If answer is visible, hide it and collapse the details row
+                answerDetails.style.display = 'none';
+                
+                // Only hide the entire details row if strategy details are also hidden
+                if (strategyDetails.style.display === 'none') {
+                    detailsRow.style.display = 'none';
+                }
+            } else {
+                // Show answer details and ensure details row is visible
+                detailsRow.style.display = 'table-row';
+                answerDetails.style.display = 'block';
+                
+                // Hide strategy details when showing answer details
+                strategyDetails.style.display = 'none';
+            }
+        }
     });
 }

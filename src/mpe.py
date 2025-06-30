@@ -878,7 +878,7 @@ def get_query_answers(query_id):
         AnswerModel = aliased(Model)
         MetapromptModel = aliased(Model)
         
-        # Get all answers with related data including metaprompt model
+        # Get all answers with related data including metaprompt model and tokens
         answers = session.query(
             Answer.id,
             Answer.answer,
@@ -889,7 +889,10 @@ def get_query_answers(query_id):
             AnswerModel.name.label('model_name'),
             Strategy.name.label('strategy_name'),
             Metaprompt.prompt.label('metaprompt'),
-            MetapromptModel.name.label('metaprompt_model_name'),  # Metaprompt Model
+            MetapromptModel.name.label('metaprompt_model_name'),
+            Metaprompt.prompt_eval_count.label('metaprompt_prompt_eval_count'),
+            Metaprompt.eval_count.label('metaprompt_eval_count'),
+            Metaprompt.total_tokens.label('metaprompt_total_tokens'),
             Feedback.completeness,
             Feedback.relevance,
             Feedback.clarity
@@ -917,13 +920,16 @@ def get_query_answers(query_id):
                 'tokens': f"{answer.prompt_eval_count}/{answer.eval_count}/{answer.total_tokens}",
                 'score': answer.f1,
                 'is_best': answer.id == query.best_answer_id,
-                'metaprompt': answer.metaprompt,
-                'metaprompt_model': answer.metaprompt_model_name,
+                'metaprompt': {
+                    'prompt': answer.metaprompt,
+                    'model': answer.metaprompt_model_name,
+                    'tokens': f"{answer.metaprompt_prompt_eval_count}/{answer.metaprompt_eval_count}/{answer.metaprompt_total_tokens}"
+                },
                 'feedback': {
                     'completeness': answer.completeness,
                     'relevance': answer.relevance,
                     'clarity': answer.clarity
-                }
+                } if answer.completeness is not None else None
             })
         
         return jsonify(result)
@@ -931,7 +937,6 @@ def get_query_answers(query_id):
         return jsonify({'error': str(e)}), 500
     finally:
         session.close()
-
 
 @app.route('/api/custom_query', methods=['POST'])
 def execute_custom_query():
